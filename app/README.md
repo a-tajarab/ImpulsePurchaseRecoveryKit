@@ -21,3 +21,86 @@ An interactive feature where users can inquire about a recent or future purchase
 
 ### 🫂 Emotional Response Engine
 A critical support feature. If a user logs an exceptionally high regret score, the engine immediately prompts a response to comfort the user, encourage a positive outlook, and provide actionable, gentle advice on how to avoid a similar situation next time.
+
+
+#### Week 1 
+Core Setup + OCR Foundation
+
+Task Details
+
+🔹Android Studio Setup - Created a new project in Kotlin.
+
+🔹A ML Kit dependency is added and is implemented 'com.google.mlkit:text-recognition:16.0.0'
+
+🔹Built an image input flow	to allow user to capture or upload receipt by using camera & storage.
+
+🔹Implemented the OCR to process and used the ML Kit to extract text from receipt and log the order to Logcat.
+
+🔹Parsed text into key fields it extracts the item name, price, quantity, total amount, and the store name.
+
+🔹It stores sample outputs and saves the OCR text as CSV for quick testing.
+
+
+#### Week 2
+Data Storage + App Skeleton (Backend + Basic UI)
+
+Task Details
+
+🔹 Create Room Database	Entities: Receipt, Item, Emotion.
+
+🔹 Implement DAOs & Repository	Handle insert, update, delete, query.
+
+🔹 Build ViewModel	To bridge UI ↔ data safely.
+
+🔹 Create basic screens	Home, Scan, Results, History.
+
+🔹 Connect OCR to database	After scanning, save extracted receipt text to Room DB.
+
+🔹 Add navigation	Use Navigation Component or simple intents.
+
+
+#### Week 3
+Emotional Input + Analytics Dashboard
+
+Task Details
+
+🔹 Added a regret score screen with a slider (1–10) and a text box for feelings (“Why did I buy this?”).
+
+🔹 Linked the regret score to the receipts - Each receipt has 1 emotional entry.
+
+🔹 Added “Did You Know?” popups, added random facts from my literature data.
+
+🔹 Built an analytics dashboard that shows expenditure by category, average regret, etc.
+
+🔹 Use chart library	MPAndroidChart or Compose Charts.
+
+
+
+#### Week 4
+Design, Testing & Polish
+
+Task Details
+
+🔹 Design final UI	Use consistent color palette, icons, typography.
+
+🔹 Add animations	Simple transitions for smooth experience.
+
+🔹 Add splash & onboarding screens	Short intro explaining the app’s purpose.
+
+🔹 Add error handling	Handle OCR failures, blank fields, missing permissions.
+
+🔹 Test on multiple devices	Check performance, layout, and bugs.
+
+🔹 Final demo recording	Record a short walkthrough video for documentation.
+
+--
+--
+--
+
+
+
+
+
+
+
+
