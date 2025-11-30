@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -29,7 +30,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //Initiliaze the scanner
+        //Initialize the scanner
         receiptScanner = ReceiptScanner(this)
         setContent {
             ImpulsePurchaseRecoveryKitTheme {
@@ -47,7 +48,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
     private fun processReceipt(imageUri: Uri){
         lifecycleScope.launch {
             Toast.makeText(
@@ -57,12 +57,46 @@ class MainActivity : ComponentActivity() {
             ).show()
 
             val extractedText = receiptScanner.scanReceipt(imageUri)
-            if (extractedText != null){
-                Toast.makeText(
-                    this@MainActivity,
-                    "Scan successful! Check Logcat for results. \nFound ${extractedText.length} characters",
-                    Toast.LENGTH_LONG
-                ).show()
+
+            if (extractedText != null) {
+                val parser = ReceiptParser()
+                val parsedReceipt = parser.parseReceipt(extractedText)
+
+                val csvExporter = CsvExporter(this@MainActivity)
+                val csvFile = csvExporter.exportToCSV(parsedReceipt)
+                val rawFile = csvExporter.exportRawOcrText(extractedText)
+
+                if (parsedReceipt.isValid()) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        """Scan successful!
+                            Store: ${parsedReceipt.storeName ?: "Unknown"} 
+                            Items: ${parsedReceipt.items.size} 
+                            Total : $${parsedReceipt.total} 
+                            Exported to: ${csvFile?.name}
+                            Check Logcat for results.
+                            """.trimIndent(),
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    Log.d("PARSED_RECEIPT", " == Receipt Details ==")
+                    Log.d("PARSED_RECEIPT", parsedReceipt.getSummary())
+                    Log.d("PARSED_RECEIPT", "\nItems:")
+                    parsedReceipt.items.forEach { item ->
+                        Log.d(
+                            "PARSED_RECEIPT",
+                            " - ${item.name} [${item.category}]: $${item.price}"
+                        )
+                    }
+                    Log.d("PARSED_RECEIPT", "\nCSV exported to: ${csvFile?.absolutePath}")
+                    Log.d("PARSED_RECEIPT", "Raw OCR exported to: ${rawFile?.absolutePath}")
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Scan completed but parsing failed. Check Logcat",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             } else {
                 Toast.makeText(
                     this@MainActivity,
@@ -98,9 +132,25 @@ fun ReceiptScannerScreen(onScanReceipt: (Uri) -> Unit) {
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == ComponentActivity.RESULT_OK) {
-            result.data?.data?.let { uri ->
+            val uri = result.data?.data
+            if (uri != null) {
+                Log.d("IMAGE_PICKER", "Selected image: $uri")
                 onScanReceipt(uri)
+            } else {
+                Log.e("IMAGE_PICKER", "URI is null")
+                Toast.makeText(
+                    context,
+                    "Error: Could not get selected file",
+                    Toast.LENGTH_LONG
+                ).show()
             }
+        } else {
+            Log.e("IMAGE_PICKER", "Result code: ${result.resultCode}")
+            Toast.makeText(
+                context,
+                "Image selection cancelled",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -129,7 +179,7 @@ fun ReceiptScannerScreen(onScanReceipt: (Uri) -> Unit) {
             )
 
             Text(
-                text = "Week 1: OCR Test",
+                text = "Week 2: Receipt Parsing",
                 style = MaterialTheme.typography.bodyLarge
             )
 
@@ -138,7 +188,10 @@ fun ReceiptScannerScreen(onScanReceipt: (Uri) -> Unit) {
             Button(
                 onClick = {
                     if (hasPermission) {
-                        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                        val intent = Intent(Intent.ACTION_GET_CONTENT) .apply{
+                            type = "image/*"
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                        }
                         imagePickerLauncher.launch(intent)
                     } else {
                         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -150,7 +203,7 @@ fun ReceiptScannerScreen(onScanReceipt: (Uri) -> Unit) {
                     }
                 },
                 modifier = Modifier
-                    .fillMaxSize(0.7f)
+                    .fillMaxWidth(0.7f)
                     .height(56.dp)
             ) {
                 Text(
@@ -167,3 +220,6 @@ fun ReceiptScannerScreen(onScanReceipt: (Uri) -> Unit) {
         }
     }
 }
+
+
+
