@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.example.impulsepurchaserecoverykit.ui.theme.ImpulsePurchaseRecoveryKitTheme
+import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
 import kotlinx.coroutines.launch
 
 
@@ -55,30 +56,35 @@ class MainActivity : ComponentActivity() {
                 "Scanning receipt...",
                 Toast.LENGTH_SHORT
             ).show()
-
+            //Extract the text with OCR
             val extractedText = receiptScanner.scanReceipt(imageUri)
 
             if (extractedText != null) {
+                //Parse the text into structured data
                 val parser = ReceiptParser()
                 val parsedReceipt = parser.parseReceipt(extractedText)
-
+                //Export to CSV for testing
                 val csvExporter = CsvExporter(this@MainActivity)
                 val csvFile = csvExporter.exportToCSV(parsedReceipt)
-                val rawFile = csvExporter.exportRawOcrText(extractedText)
 
+                val viewModel = ReceiptViewModel(application)
+                viewModel.saveReceipt(parsedReceipt, imageUri.toString()) { receiptId ->
+                    Log.d("DATABASE", "Receipt saved with ID: $receiptId")
+                }
+                //Shows the results
                 if (parsedReceipt.isValid()) {
                     Toast.makeText(
                         this@MainActivity,
-                        """Scan successful!
+                        """Scan successful! Receipt is saved to the database.
                             Store: ${parsedReceipt.storeName ?: "Unknown"} 
                             Items: ${parsedReceipt.items.size} 
                             Total : $${parsedReceipt.total} 
-                            Exported to: ${csvFile?.name}
                             Check Logcat for results.
                             """.trimIndent(),
                         Toast.LENGTH_LONG
                     ).show()
 
+                    //This is where the results are logged in detail
                     Log.d("PARSED_RECEIPT", " == Receipt Details ==")
                     Log.d("PARSED_RECEIPT", parsedReceipt.getSummary())
                     Log.d("PARSED_RECEIPT", "\nItems:")
@@ -88,12 +94,11 @@ class MainActivity : ComponentActivity() {
                             " - ${item.name} [${item.category}]: $${item.price}"
                         )
                     }
-                    Log.d("PARSED_RECEIPT", "\nCSV exported to: ${csvFile?.absolutePath}")
-                    Log.d("PARSED_RECEIPT", "Raw OCR exported to: ${rawFile?.absolutePath}")
+                    Log.d("PARSED_RECEIPT", "\nSaved to database with auto-generated ID")
                 } else {
                     Toast.makeText(
                         this@MainActivity,
-                        "Scan completed but parsing failed. Check Logcat",
+                        "Scan completed but parsing failed.",
                         Toast.LENGTH_LONG
                     ).show()
                 }

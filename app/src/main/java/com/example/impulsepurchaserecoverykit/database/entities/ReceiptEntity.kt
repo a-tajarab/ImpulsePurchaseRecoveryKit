@@ -1,0 +1,28 @@
+package com.example.impulsepurchaserecoverykit.database.entities
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "receipts")
+data class ReceiptEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+
+    val storeName: String?,
+    val purchaseDate: String?,
+    val totalAmount: Double?,
+    val subtotal: Double?,
+    val tax: Double?,
+    val rawOcrText: String,
+    val imageUri: String?,
+
+    // Regret score (1-10, null until user rates)
+    val regretScore: Int? = null,
+
+    // Emotional note
+    val emotionalNote: String? = null,
+
+    // Timestamps
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+)
