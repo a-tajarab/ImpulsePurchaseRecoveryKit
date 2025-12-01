@@ -1,0 +1,91 @@
+package com.example.impulsepurchaserecoverykit.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.impulsepurchaserecoverykit.ParsedReceipt
+import com.example.impulsepurchaserecoverykit.database.AppDatabase
+import com.example.impulsepurchaserecoverykit.database.ReceiptRepository
+import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+
+class ReceiptViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository: ReceiptRepository
+
+    // State for the UI
+    private val _receiptCount = MutableStateFlow(0)
+    val receiptCount: StateFlow<Int> = _receiptCount
+
+    private val _averageRegret = MutableStateFlow<Double?>(null)
+    val averageRegret: StateFlow<Double?> = _averageRegret
+
+    init {
+        val database = AppDatabase.getDatabase(application)
+        repository = ReceiptRepository(database)
+
+        // Load initial stats
+        loadStats()
+    }
+
+    // ========== Receipt Operations ==========
+
+    /**
+     * Save a scanned receipt to database
+     */
+    fun saveReceipt(parsedReceipt: ParsedReceipt, imageUri: String?, onSuccess: (Long) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val receiptId = repository.saveReceipt(parsedReceipt, imageUri)
+                loadStats() // Refresh stats
+                onSuccess(receiptId)
+            } catch (e: Exception) {
+                // Handle error
+                android.util.Log.e("ReceiptViewModel", "Error saving receipt", e)
+            }
+        }
+    }
+
+    /**
+     * Get all receipts
+     */
+    fun getAllReceipts(): Flow<List<ReceiptEntity>> {
+        return repository.getAllReceipts()
+    }
+
+    /**
+     * Update regret score
+     */
+    fun updateRegretScore(receiptId: Long, regretScore: Int, note: String?) {
+        viewModelScope.launch {
+            repository.updateRegretScore(receiptId, regretScore, note)
+            loadStats() // Refresh stats
+        }
+    }
+
+    /**
+     * Delete a receipt
+     */
+    fun deleteReceipt(receipt: ReceiptEntity) {
+        viewModelScope.launch {
+            repository.deleteReceipt(receipt)
+            loadStats() // Refresh stats
+        }
+    }
+
+    // ========== Statistics ==========
+
+    private fun loadStats() {
+        viewModelScope.launch {
+            _receiptCount.value = repository.getReceiptCount()
+            _averageRegret.value = repository.getAverageRegretScore()
+        }
+    }
+
+    fun getHighRegretReceipts(): Flow<List<ReceiptEntity>> {
+        return repository.getHighRegretReceipts(7)
+    }
+}
