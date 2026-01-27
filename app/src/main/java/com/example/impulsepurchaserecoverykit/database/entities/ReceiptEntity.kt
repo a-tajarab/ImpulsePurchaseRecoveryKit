@@ -16,6 +16,11 @@ data class ReceiptEntity(
     val rawOcrText: String,
     val imageUri: String?,
 
+    // NEW: impulse scoring (computed automatically)
+    val impulseScore: Int? = null,          // 0..100
+    val impulseLabel: String? = null,       // "LOW" | "MEDIUM" | "HIGH"
+    val impulseReasonsJson: String? = null, // JSON array of strings
+
     // Regret score (1-10, null until user rates)
     val regretScore: Int? = null,
 

@@ -334,8 +334,9 @@ class ReceiptParser {
         val lowerName = itemName.lowercase()
 
         for ((category, keywords) in categories) {
-            if (keywords.any { it in lowerName }) {
-                return category
+            for (kw in keywords){
+                val pattern = Regex("""\b${Regex.escape(kw.lowercase())}\b""")
+                if (pattern.containsMatchIn(lowerName)) return category
             }
         }
         return "other"
@@ -391,33 +392,48 @@ class ReceiptParser {
     /**
      * Extract subtotal (before tax)
      */
-    private fun extractSubtotal(text: String): Double? {
-        val pattern =
-            Pattern.compile("sub.*?total.*?(?:£|\\$)?\\s*([0-9]+(?:[\\.,][0-9]{1,2})?)", Pattern.CASE_INSENSITIVE)
-        val matcher = pattern.matcher(text.lowercase())
+    private val moneyRegex = Regex("""(?:£|\$)\s*([0-9]+(?:[.,][0-9]{2})?)""")
 
-        if (matcher.find()) {
-            val subtotal = matcher.group(1)?.toDoubleOrNull()
-            Log.d("PARSER", "Found subtotal: $$subtotal")
-            return subtotal
+    private fun extractSubtotal(text: String): Double? {
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+        // 1) Same-line format: "Subtotal £12.34"
+        for (ln in lines) {
+            val lower = ln.lowercase()
+            if (lower.contains("subtotal") || lower.contains("sub total") || lower.contains("sub-total")) {
+                val m = moneyRegex.find(ln)
+                if (m != null) return m.groupValues[1].replace(",", ".").toDoubleOrNull()
+            }
         }
 
-        return null
+        // 2) Generated format: last 3 money amounts are [subtotal, tax, total]
+        val amounts = lines.mapNotNull { ln ->
+            moneyRegex.find(ln)?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
+        }
+        if (amounts.size >= 3) return amounts[amounts.size - 3]
+
+        // 3) If we only have total & tax elsewhere, subtotal can be total - tax
+        val total = extractTotal(text)
+        val tax = extractTax(text)
+        return if (total != null && tax != null) (total - tax).coerceAtLeast(0.0) else null
     }
 
-    /**
-     * Extract tax amount
-     */
     private fun extractTax(text: String): Double? {
-        val pattern = Pattern.compile("(tax|vat).*?(?:£|\\$)?\\s*([0-9]+(?:[\\.,][0-9]{1,2})?)", Pattern.CASE_INSENSITIVE)
-        val matcher = pattern.matcher(text.lowercase())
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-        if (matcher.find()) {
-            val tax = matcher.group(2)?.replace(",", ".")?.toDoubleOrNull()
-            Log.d("PARSER", "Found tax: $$tax")
-            return tax
+        // 1) Same-line format: "Tax £1.23" / "VAT £1.23"
+        for (ln in lines) {
+            val lower = ln.lowercase()
+            if (lower.contains("tax") || lower.contains("vat")) {
+                val m = moneyRegex.find(ln)
+                if (m != null) return m.groupValues[1].replace(",", ".").toDoubleOrNull()
+            }
         }
 
-        return null
+        // 2) Generated format: last 3 money amounts are [subtotal, tax, total]
+        val amounts = lines.mapNotNull { ln ->
+            moneyRegex.find(ln)?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
+        }
+        return if (amounts.size >= 2) amounts[amounts.size - 2] else null
     }
 }

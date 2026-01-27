@@ -17,7 +17,7 @@ import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
         ItemEntity::class,
         EmotionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

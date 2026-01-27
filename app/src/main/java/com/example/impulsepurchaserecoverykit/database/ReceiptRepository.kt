@@ -1,5 +1,6 @@
 package com.example.impulsepurchaserecoverykit.database
 
+import com.example.impulsepurchaserecoverykit.ImpulseScorer
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
@@ -22,6 +23,8 @@ class ReceiptRepository(private val database: AppDatabase) {
      * Save a parsed receipt to the database
      */
     suspend fun saveReceipt(parsedReceipt: ParsedReceipt, imageUri: String?): Long {
+        val impulse = ImpulseScorer.score(parsedReceipt)
+
         // Create receipt entity
         val receiptEntity = ReceiptEntity(
             storeName = parsedReceipt.storeName,
@@ -30,7 +33,11 @@ class ReceiptRepository(private val database: AppDatabase) {
             subtotal = parsedReceipt.subtotal,
             tax = parsedReceipt.tax,
             rawOcrText = parsedReceipt.rawText,
-            imageUri = imageUri
+            imageUri = imageUri,
+
+            impulseScore = impulse.score,
+            impulseLabel =  impulse.label.name,
+            impulseReasonsJson = impulse.reasonsJson()
         )
 
         // Insert receipt and get its ID

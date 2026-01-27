@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
+import org.json.JSONArray
 
 @Composable
 fun ReceiptDetailScreen(
@@ -46,6 +47,8 @@ fun ReceiptDetailScreen(
         Text("Tax: £${receipt.tax ?: "—"}")
         Text("Total: £${receipt.totalAmount ?: "—"}")
         Text("Regret: ${receipt.regretScore?.toString() ?: "Not rated"}")
+        Text("Impulse: ${receipt.impulseLabel ?: "—"} (${receipt.impulseScore ?: 0}/100)")
+
 
         receipt.emotionalNote?.let{
             Divider()
@@ -69,5 +72,14 @@ fun ReceiptDetailScreen(
                 }
             }
         }
+    }
+}
+private fun parseReasons(json: String?): List<String> {
+    if (json.isNullOrBlank()) return emptyList()
+    return try {
+        val arr = JSONArray(json)
+        List(arr.length()) { i -> arr.getString(i) }
+    } catch (e: Exception) {
+        emptyList()
     }
 }
