@@ -23,7 +23,7 @@ An interactive feature where users can inquire about a recent or future purchase
 A critical support feature. If a user logs an exceptionally high regret score, the engine immediately prompts a response to comfort the user, encourage a positive outlook, and provide actionable, gentle advice on how to avoid a similar situation next time.
 
 
-#### Week 1 
+#### Sep - Oct 
 Core Setup + OCR Foundation
 
 Task Details
@@ -41,7 +41,7 @@ Task Details
 🔹It stores sample outputs and saves the OCR text as CSV for quick testing.
 
 
-#### Week 2
+#### Nov - Dec
 Data Storage + App Skeleton (Backend + Basic UI)
 
 Task Details
@@ -59,7 +59,7 @@ Task Details
 🔹 Add navigation	Use Navigation Component or simple intents.
 
 
-#### Week 3
+#### Jan - Feb
 Emotional Input + Analytics Dashboard
 
 Task Details
@@ -76,7 +76,7 @@ Task Details
 
 
 
-#### Week 4
+#### Mar - Apr
 Design, Testing & Polish
 
 Task Details
