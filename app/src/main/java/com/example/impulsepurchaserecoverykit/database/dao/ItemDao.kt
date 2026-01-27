@@ -3,6 +3,9 @@ package com.example.impulsepurchaserecoverykit.database.dao
 import androidx.room.*
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import kotlinx.coroutines.flow.Flow
+import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
+import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
+
 
 @Dao
 interface ItemDao {
@@ -27,4 +30,23 @@ interface ItemDao {
 
     //@Query("SELECT category, COUNT(*) as count FROM items GROUP BY category ORDER BY count DESC")
     //suspend fun getCategoryStats(): List<CategoryStats>
+
+    @Query("""
+    SELECT category AS category,
+           SUM(price * quantity) AS total
+    FROM items
+    GROUP BY category
+    ORDER BY total DESC
+""")
+    fun getSpendByCategory(): Flow<List<CategorySpend>>
+
+    @Query("""
+    SELECT category AS category,
+           COUNT(*) AS count
+    FROM items
+    GROUP BY category
+    ORDER BY count DESC
+""")
+    fun getItemCountByCategory(): Flow<List<CategoryCount>>
+
 }

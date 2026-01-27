@@ -14,7 +14,7 @@ class ReceiptParser {
 
         val storeName = extractStoreName(rawText)
         val date = extractDate(rawText)
-        val items = extractItems(rawText)
+        val items = extractItems(rawText, storeName)
         val total = extractTotal(rawText)
         val subtotal = extractSubtotal(rawText)
         val tax = extractTax(rawText)
@@ -70,13 +70,11 @@ class ReceiptParser {
     private fun extractDate(text: String): String? {
         // Common date patterns
         val patterns = listOf(
-            // MM/DD/YYYY or MM/DD/YY
-            "\\d{1,2}/\\d{1,2}/\\d{2,4}",
-            // DD-MM-YYYY or DD-MM-YY
-            "\\d{1,2}-\\d{1,2}-\\d{2,4}",
-            // YYYY-MM-DD
-            "\\d{4}-\\d{1,2}-\\d{1,2}",
-            // Month DD, YYYY (e.g., "Jan 15, 2024")
+            // DD/MM/YYYY or MM/DD/YYYY with optional spaces around separators
+            "\\d{1,2}\\s*[/-]\\s*\\d{1,2}\\s*[/-]\\s*\\d{2,4}",
+            // YYYY-MM-DD with optional spaces
+            "\\d{4}\\s*[/-]\\s*\\d{1,2}\\s*[/-]\\s*\\d{1,2}",
+            // Month DD, YYYY
             "[A-Za-z]{3,9}\\s+\\d{1,2},?\\s+\\d{4}"
         )
 
@@ -97,41 +95,76 @@ class ReceiptParser {
     /**
      * Extract individual items and their prices
      */
-    private fun extractItems(text: String): List<ParsedItem> {
+    private fun extractItems(text: String, storeName: String?): List<ParsedItem> {
         val items = mutableListOf<ParsedItem>()
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-        // Pattern to match lines with prices
-        // Matches: "Item Name    $12.99" or "Item Name 12.99"
-        val standardPattern = Pattern.compile("(.*?)\\s+\\$?([0-9]+\\.[0-9]{2})\\s*$")
+        // inline: "Coffee £2.50" or "Bread 0.89"
+        val itemLinePattern = Pattern.compile(
+            "(.{2,}?)\\s+(?:£|\\$|GBP\\s*)?([0-9]+(?:[\\.,][0-9]{1,2})?)\\s*$",
+            Pattern.CASE_INSENSITIVE
+        )
 
-        // Keywords to skip (not actual items)
-        val skipKeywords = listOf(
+        val stopKeywords = listOf(
             "subtotal", "sub total", "sub-total",
-            "tax", "total", "amount", "balance", "change",
-            "cash", "credit", "debit", "visa", "mastercard",
-            "discount", "coupon", "savings", "tender"
+            "tax", "vat", "total",
+            "clubcard", "savings", "saving",
+            "visa", "mastercard", "amex", "debit", "credit",
+            "payment", "paid", "change", "balance",
+            "join", "today", "thank", "visit", "www",
+            "cashier", "operator", "terminal", "auth", "ref"
         )
 
         val categories = mapOf(
             "produce" to listOf(
-                "banana", "apple", "orange", "lettuce", "tomato", "potato", "onion"
+                "banana",
+                "apple",
+                "orange",
+                "lettuce",
+                "tomato",
+                "potato",
+                "onion"
             ),
             "dairy" to listOf("milk", "cheese", "yogurt", "butter", "cream", "egg"),
             "meat" to listOf("chicken", "beef", "pork", "fish", "turkey", "bacon"),
             "bakery" to listOf("bread", "bagel", "donut", "cake", "cookie"),
-            "beverage" to listOf("soda", "juice", "water", "coffee", "tea"),
+            "beverage" to listOf("soda", "juice", "water", "coffee", "tea", "latte",
+                "cappuccino", "espresso", "mocha", "americano", "macchiato"),
             "tops" to listOf(
-                "shirt", "tshirt", "t-shirt", "tee", "blouse", "tank", "hoodie", "sweater",
-                "jumper", "crop top", "top", "polo", "cardigan"
+                "shirt",
+                "tshirt",
+                "t-shirt",
+                "tee",
+                "blouse",
+                "tank",
+                "hoodie",
+                "sweater",
+                "jumper",
+                "crop top",
+                "top",
+                "polo",
+                "cardigan"
             ),
             "bottoms" to listOf(
-                "jeans", "pants", "trousers", "shorts",
-                "leggings", "skirt", "cargo", "joggers"
+                "jeans",
+                "pants",
+                "trousers",
+                "shorts",
+                "leggings",
+                "skirt",
+                "cargo",
+                "joggers"
             ),
             "outerwear" to listOf("jacket", "coat", "parka", "blazer", "windbreaker", "puffer"),
             "shoes" to listOf(
-                "shoes", "sneakers", "trainers", "boots", "heels", "sandals", "flip flops", "slides"
+                "shoes",
+                "sneakers",
+                "trainers",
+                "boots",
+                "heels",
+                "sandals",
+                "flip flops",
+                "slides"
             ),
             "accessories" to listOf(
                 "hat",
@@ -150,78 +183,143 @@ class ReceiptParser {
             "bags" to listOf("bag", "handbag", "purse", "backpack", "tote", "wallet", "duffel")
         )
 
+        var startedItems = false
+
+        // 1) Inline parsing pass
         for (line in lines) {
+            val lower = line.lowercase()
+            // ALWAYS skip summary/payment/footer lines (even before startedItems)
+            if (stopKeywords.any { it in lower }) continue
 
-            // Skip if line contains skip keywords
-            val lowerLine = line.lowercase()
-            if (skipKeywords.any { it in lowerLine }) continue
+            // Skip masked card lines like "****7912" or lines that are basically card digits
+            if (lower.contains("****")) continue
+            if (lower.matches(Regex("""^\*{2,}\d{2,}.*$"""))) continue
 
-            // Try to match price pattern
-            val matcher = standardPattern.matcher(line)
-            if (matcher.find()) {
-                val itemName = matcher.group(1)?.trim() ?: continue
-                val priceStr = matcher.group(2) ?: continue
+            // Skip pure time lines
+            if (lower.matches(Regex("""^\d{1,2}:\d{2}$"""))) continue
 
-                // Skip if item name is too short or just numbers
-                if (itemName.length >= 2 && !itemName.matches(Regex("^[0-9\\s]+$"))) {
-                    try {
-                        val price = priceStr.toDouble()
-                        // Sanity check - items usually cost between $0.01 and $999.99
-                        if (price in 0.01..999.99) {
-                            val category = categorizeItem(itemName, categories)
-                            items.add(ParsedItem(itemName, price, 1, category))
-                            Log.d("PARSER", "Found item: $itemName [$category] -> $$price")
-                        }
-                    } catch (e: NumberFormatException) {
-                        //Log.d("PARSER", "Failed to parse price: $priceStr")
-                    }
-                }
+            if (startedItems && stopKeywords.any { it in lower }) break
+
+            if (!startedItems) {
+                val headerJunk = listOf("tesco", "dunkin", "every", "clubcard")
+                if (headerJunk.any { it in lower }) continue
             }
+
+
+            val matcher = itemLinePattern.matcher(line)
+            if (!matcher.find()) continue
+
+            var name = matcher.group(1)?.trim().orEmpty()
+            val priceStr = matcher.group(2)?.trim().orEmpty()
+
+            val price = priceStr.replace(",", ".").toDoubleOrNull() ?: continue
+            if (price !in 0.01..999.99) continue
+
+            name = cleanItemName(name)
+            if (!name.any { it.isLetter() }) continue
+            if (name.length <= 5 && name.uppercase() == name) continue // TESCO, IKEA, etc
+
+            startedItems = true
+
+            val category = categorizeItem(name, categories)
+            items.add(ParsedItem(name, price, 1, category))
+            Log.d("PARSER", "Found item (inline): $name [$category] -> £$price")
         }
+
+        // 2) Fallback: Tesco/Dunkin block pairing (names block + prices block)
+        // 2) Fallback: names block + prices-only block (your generated receipts)
         if (items.isEmpty()) {
-            Log.d("PARSER", "Standard pattern failed, trying alternative pattern ...")
+            Log.d("PARSER", "No inline items found. Trying block pairing (names + prices)...")
 
+            val lowerStore = storeName?.lowercase()?.trim()
+
+            val isPriceOnly = Regex("""^\s*(?:£|\$)\s*([0-9]+(?:[\\.,][0-9]{2})?)\s*$""")
+            //val stopAt = setOf("subtotal", "sub total", "tax", "vat", "total")
+
+            val cleanLines = lines.map { it.trim() }.filter { it.isNotEmpty() }
+
+            fun isSummaryLabel(line: String):Boolean {
+                val norm = line.lowercase()
+                    .replace(" ", "")
+                    .replace("-", "")
+                    .trim()
+                return norm == "subtotal" || norm == "tax" || norm == "vat" || norm == "total"
+            }
+            // Find where items section ends (Subtotal/Tax/Total label lines)
+            val stopIndex = cleanLines.indexOfFirst { isSummaryLabel(it)}
+                .let { if (it == -1) cleanLines.size else it }
+
+            // Find date line index (so we start collecting item names AFTER the date)
+            val dateIndex = cleanLines.indexOfFirst { ln ->
+                Regex("""\d{1,2}\s*[/-]\s*\d{1,2}\s*[/-]\s*\d{2,4}""").containsMatchIn(ln)
+            }.let { if (it == -1) 0 else it }
+
+            var startIndex = (dateIndex + 1).coerceAtLeast(0)
+            // if next line is time like 20:40, skip it too
+            if (startIndex < stopIndex && cleanLines[startIndex].matches(Regex("""\d{1,2}:\d{2}"""))) {
+                startIndex++
+            }
+
+
+            // Collect item names between dateIndex..stopIndex (excluding store/header/address/phone)
             val itemNames = mutableListOf<String>()
+            for (i in startIndex until stopIndex) {
+                val ln = cleanLines[i]
+                val l = ln.lowercase()
+
+                // skip obvious header/footer junk
+                if (l.contains("high street") || l.contains("london") || l.startsWith("020") || l.contains(
+                        "tel"
+                    )
+                ) continue
+                if (l.matches(Regex("""\d{1,2}:\d{2}"""))) continue // time like 11:55
+
+                val cleaned = cleanItemName(ln)
+
+                // skip store line if it appears
+                if (lowerStore != null && cleaned.lowercase() == lowerStore) continue
+                if (!cleaned.any { it.isLetter() }) continue
+
+                itemNames.add(cleaned)
+
+            }
+
+            // Collect ALL prices-only lines (in order)
             val prices = mutableListOf<Double>()
-
-            for (line in lines) {
-
-                val lowerLine = line.lowercase()
-
-                if (skipKeywords.any { it in lowerLine }) continue
-
-                val pricePattern = Pattern.compile("^\\$?([0-9]+\\.[0-9]{2})$")
-                val priceMatcher = pricePattern.matcher(line.trim())
-
-                if (priceMatcher.find()) {
-                    val priceStr = priceMatcher.group(1)
-                    try {
-                        val price = priceStr.toDouble()
-                        if (price in 0.01..999.99) {
-                            prices.add(price)
-                            Log.d("PARSER", "Found price: $$price")
-                        }
-                    } catch (e: NumberFormatException) {
-                        //
-                    }
-                } else if (line.length >= 2 && !line.matches(Regex("^[0-9/\\-\\s]+$"))) {
-                    itemNames.add(line)
-                    Log.d("PARSER", "Found potential item: $line")
+            for (ln in cleanLines) {
+                val m = isPriceOnly.find(ln)
+                if (m != null) {
+                    val p = m.groupValues[1].replace(",", ".").toDoubleOrNull()
+                    if (p != null && p in 0.01..999.99) prices.add(p)
                 }
             }
-            val pairCount = minOf(itemNames.size, prices.size)
-            for (i in 0 until pairCount) {
-                val itemName = itemNames[i]
-                val price = prices[i]
-                val category = categorizeItem(itemName, categories)
 
-                items.add(ParsedItem(itemName, price, 1, category))
-                Log.d("PARSER", "Matched item: $itemName [$category] -> $$price")
+            // Your generator outputs: [item prices...] then [subtotal, tax, total] at the very end.
+            // Remove last 3 if possible so totals don't get paired as items.
+            val itemPrices = prices.toMutableList()
+            if (itemPrices.size >= 3) {
+                itemPrices.removeAt(itemPrices.lastIndex) // total
+                itemPrices.removeAt(itemPrices.lastIndex) // tax
+                itemPrices.removeAt(itemPrices.lastIndex) // subtotal
             }
+
+            val pairCount = minOf(itemNames.size, itemPrices.size)
+            for (i in 0 until pairCount) {
+                val name = itemNames[i]
+                val price = itemPrices[i]
+                val category = categorizeItem(name, categories)
+                items.add(ParsedItem(name, price, 1, category))
+                Log.d("PARSER", "Paired item: $name [$category] -> £$price")
+            }
+
         }
         Log.d("PARSER", "Found ${items.size} items total")
         return items
     }
+
+
+
+
 
 
     private fun cleanItemName(name: String): String {
@@ -248,59 +346,43 @@ class ReceiptParser {
      */
 
     private fun extractTotal(text: String): Double? {
-        // Look for patterns like "TOTAL $45.67" or "Amount Due: 45.67"
-        val lines = text.lines().map { it.trim() }
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-        for (i in lines.indices) {
-            val line = lines[i].lowercase()
-
-            if ("total" in line) {
-                val pricePattern = Pattern.compile("\\$?([0-9]+\\.[0-9]{2})")
-                val matcher = pricePattern.matcher(lines[i])
-
-                if (matcher.find()) {
-                    try {
-                        val total = matcher.group(1).toDouble()
-                        Log.d("PARSER", "Found total on same line: $$total")
-                        return total
-                    } catch (e: NumberFormatException) {
-                        //Log.d("PARSER", "Failed to parse total: $lastMatch")
-                    }
-                }
-                if (i + 1 < lines.size) {
-                    val nextLine = lines[i + 1]
-                    val nextMatcher = pricePattern.matcher(nextLine)
-
-                    if (nextMatcher.find()) {
-                        try {
-                            val total = nextMatcher.group(1).toDouble()
-                            Log.d("PARSER", "Found total on next line: $$total ")
-                            return total
-                        } catch (e: NumberFormatException) {
-                            //Log.d("PARSER", "Failed to parse total: $lastMatch")
-                        }
-                    }
+        // 1) If there is a "TOTAL ... £xx.xx" on the same line, use it.
+        val totalSameLine = Pattern.compile(
+            """\btotal\b.*?(?:£|\$)\s*([0-9]+(?:[.,][0-9]{2})?)""",
+            Pattern.CASE_INSENSITIVE
+        )
+        for (ln in lines) {
+            val m = totalSameLine.matcher(ln)
+            if (m.find()) {
+                val v = m.group(1)?.replace(",", ".")?.toDoubleOrNull()
+                if (v != null) {
+                    Log.d("PARSER", "Found total on TOTAL line: £$v")
+                    return v
                 }
             }
         }
-        val allPrices = mutableListOf<Double>()
-        val pricePattern = Pattern.compile("\\$?([0-9]+\\.[0-9]{2})")
 
-        for (line in lines) {
-            val matcher = pricePattern.matcher(line)
-            while (matcher.find()) {
-                try {
-                    allPrices.add(matcher.group(1).toDouble())
-                } catch (e: NumberFormatException) {
+        // 2) Otherwise collect ALL currency amounts in order and take the last one.
+        // This matches your generated receipts where subtotal/tax/total are at the very end.
+        val money = Pattern.compile("""(?:£|\$)\s*([0-9]+(?:[.,][0-9]{2})?)""")
+        val amounts = mutableListOf<Double>()
 
-                }
+        for (ln in lines) {
+            val m = money.matcher(ln)
+            while (m.find()) {
+                val v = m.group(1)?.replace(",", ".")?.toDoubleOrNull()
+                if (v != null) amounts.add(v)
             }
         }
-        if (allPrices.isNotEmpty()) {
-            val maxPrice = allPrices.maxOrNull()
-            Log.d("PARSER", "Using largest price as total: $$maxPrice")
-            return maxPrice
+
+        if (amounts.isNotEmpty()) {
+            val total = amounts.last()
+            Log.d("PARSER", "Using last currency amount as total: £$total")
+            return total
         }
+
         Log.d("PARSER", "No total found")
         return null
     }
@@ -311,7 +393,7 @@ class ReceiptParser {
      */
     private fun extractSubtotal(text: String): Double? {
         val pattern =
-            Pattern.compile("sub.*?total.*?\\$?([0-9]+\\.[0-9]{2})", Pattern.CASE_INSENSITIVE)
+            Pattern.compile("sub.*?total.*?(?:£|\\$)?\\s*([0-9]+(?:[\\.,][0-9]{1,2})?)", Pattern.CASE_INSENSITIVE)
         val matcher = pattern.matcher(text.lowercase())
 
         if (matcher.find()) {
@@ -327,11 +409,11 @@ class ReceiptParser {
      * Extract tax amount
      */
     private fun extractTax(text: String): Double? {
-        val pattern = Pattern.compile("tax.*?\\$?([0-9]+\\.[0-9]{2})", Pattern.CASE_INSENSITIVE)
+        val pattern = Pattern.compile("(tax|vat).*?(?:£|\\$)?\\s*([0-9]+(?:[\\.,][0-9]{1,2})?)", Pattern.CASE_INSENSITIVE)
         val matcher = pattern.matcher(text.lowercase())
 
         if (matcher.find()) {
-            val tax = matcher.group(1)?.toDoubleOrNull()
+            val tax = matcher.group(2)?.replace(",", ".")?.toDoubleOrNull()
             Log.d("PARSER", "Found tax: $$tax")
             return tax
         }

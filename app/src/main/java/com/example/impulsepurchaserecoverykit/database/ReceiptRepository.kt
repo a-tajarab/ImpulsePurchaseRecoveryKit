@@ -1,9 +1,13 @@
 package com.example.impulsepurchaserecoverykit.database
 
-import com.example.impulsepurchaserecoverykit.ParsedItem
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
+import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
+import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
+import com.example.impulsepurchaserecoverykit.database.models.WeeklySpend
+import com.example.impulsepurchaserecoverykit.database.models.WeeklyRegret
+
 import kotlinx.coroutines.flow.Flow
 
 class ReceiptRepository(private val database: AppDatabase) {
@@ -125,4 +129,39 @@ class ReceiptRepository(private val database: AppDatabase) {
     fun getHighRegretReceipts(minScore: Int = 7): Flow<List<ReceiptEntity>> {
         return receiptDao.getHighRegretReceipts(minScore)
     }
+
+    fun getRecentReceipts(limit: Int = 5): Flow<List<com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity>> {
+        return receiptDao.getRecentReceipts(limit)
+    }
+
+    fun getItemsForReceiptFlow(receiptId: Long): Flow<List<com.example.impulsepurchaserecoverykit.database.entities.ItemEntity>> {
+        return itemDao.getItemsForReceiptFlow(receiptId)
+    }
+
+    fun getSpendByCategory(): Flow<List<CategorySpend>> {
+        return itemDao.getSpendByCategory()
+    }
+
+    fun getItemCountByCategory(): Flow<List<CategoryCount>> {
+        return itemDao.getItemCountByCategory()
+    }
+
+    fun getTotalSpend(): Flow<Double?> {
+        return receiptDao.getTotalSpend()
+    }
+
+    fun getTopRegretReceipts(limit: Int = 3): Flow<List<ReceiptEntity>> {
+        return receiptDao.getTopRegretReceipts(limit)
+    }
+
+    fun getWeeklySpend(): Flow<List<WeeklySpend>> {
+        return receiptDao.getWeeklySpend()
+    }
+
+    fun getWeeklyAverageRegret(): Flow<List<WeeklyRegret>> {
+        return receiptDao.getWeeklyAverageRegret()
+    }
+
+
+
 }

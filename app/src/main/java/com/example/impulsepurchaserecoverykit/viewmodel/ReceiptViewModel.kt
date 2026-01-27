@@ -7,9 +7,13 @@ import com.example.impulsepurchaserecoverykit.ParsedReceipt
 import com.example.impulsepurchaserecoverykit.database.AppDatabase
 import com.example.impulsepurchaserecoverykit.database.ReceiptRepository
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
-import kotlinx.coroutines.flow.Flow
+import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
+import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
+import com.example.impulsepurchaserecoverykit.database.models.WeeklySpend
+import com.example.impulsepurchaserecoverykit.database.models.WeeklyRegret
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 class ReceiptViewModel(application: Application) : AndroidViewModel(application) {
@@ -59,10 +63,16 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     /**
      * Update regret score
      */
-    fun updateRegretScore(receiptId: Long, regretScore: Int, note: String?) {
+    fun updateRegretScore(
+        receiptId: Long,
+        regretScore: Int,
+        note: String?,
+        onDone: (() -> Unit)? = null
+    ) {
         viewModelScope.launch {
             repository.updateRegretScore(receiptId, regretScore, note)
-            loadStats() // Refresh stats
+            loadStats()
+            onDone?.invoke()
         }
     }
 
@@ -88,4 +98,37 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     fun getHighRegretReceipts(): Flow<List<ReceiptEntity>> {
         return repository.getHighRegretReceipts(7)
     }
+    fun getRecentReceipts(limit: Int = 5): Flow<List<ReceiptEntity>> {
+        return repository.getRecentReceipts(limit)
+    }
+
+    fun getItemsForReceipt(receiptId: Long): Flow<List<com.example.impulsepurchaserecoverykit.database.entities.ItemEntity>> {
+        return repository.getItemsForReceiptFlow(receiptId)
+    }
+
+    fun getSpendByCategory(): Flow<List<CategorySpend>> {
+        return repository.getSpendByCategory()
+    }
+
+    fun getItemCountByCategory(): Flow<List<CategoryCount>> {
+        return repository.getItemCountByCategory()
+    }
+
+    fun getTotalSpend(): Flow<Double?> {
+        return repository.getTotalSpend()
+    }
+
+    fun getTopRegretReceipts(limit: Int = 3): Flow<List<ReceiptEntity>> {
+        return repository.getTopRegretReceipts(limit)
+    }
+
+    fun getWeeklySpend(): Flow<List<WeeklySpend>> {
+        return repository.getWeeklySpend()
+    }
+
+    fun getWeeklyAverageRegret(): Flow<List<WeeklyRegret>> {
+        return repository.getWeeklyAverageRegret()
+    }
+
+
 }
