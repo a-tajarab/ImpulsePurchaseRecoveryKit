@@ -2,6 +2,7 @@ package com.example.impulsepurchaserecoverykit.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -22,33 +23,45 @@ fun HomeScreen(
 
     val recentReceipts by viewModel.getRecentReceipts(5).collectAsState(initial = emptyList())
 
-    Column(
+    LazyColumn(
         modifier = Modifier
-            .padding(paddingValues)
-            .padding(16.dp)
-            .fillMaxSize(),
+            .fillMaxSize()
+            .padding(paddingValues),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Impulse Purchase Recovery Kit", style = MaterialTheme.typography.headlineMedium)
-
-        ElevatedCard {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Dashboard", style = MaterialTheme.typography.titleLarge)
-                Text("Receipts logged: $receiptCount")
-                Text("Average regret: ${avgRegret?.let { String.format("%.1f", it) } ?: "—"} / 10")
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = onScanClick, modifier = Modifier.fillMaxWidth()) {
-                    Text("Scan New Receipt") }
-            }
+        item {
+            Text("Impulse Purchase Recovery Kit", style = MaterialTheme.typography.headlineMedium)
+        }
+         item {
+             ElevatedCard {
+                 Column(
+                     Modifier.padding(16.dp),
+                     verticalArrangement = Arrangement.spacedBy(8.dp))
+                 {
+                     Text("Dashboard", style = MaterialTheme.typography.titleLarge)
+                     Text("Receipts logged: $receiptCount")
+                     Text("Average regret: ${avgRegret?.let { String.format("%.1f", it) } ?: "—"} / 10")
+                     Spacer(Modifier.height(8.dp))
+                     Button(onClick = onScanClick, modifier = Modifier.fillMaxWidth()) {
+                         Text("Scan New Receipt") }
+                 }
+             }
         }
 
-        Text("Recent Receipts", style = MaterialTheme.typography.titleMedium)
-
+        item {
+            Text("Recent Receipts", style = MaterialTheme.typography.titleMedium)
+        }
         if (recentReceipts.isEmpty()) {
-            Text("No receipts yet. Scan your first one!")
+            item { Text("No receipts yet. Scan your first one!")}
         } else {
-            recentReceipts.forEach { receipt ->
-                ReceiptRow(receipt = receipt, onClick = { onReceiptClick(receipt.id) })
+            items(
+                count = recentReceipts.size,
+                key = { index -> recentReceipts[index].id }
+            )
+            { index ->
+                val receipt = recentReceipts[index]
+                ReceiptRow(receipt = receipt, onClick = {onReceiptClick(receipt.id)})
             }
         }
     }
@@ -57,7 +70,9 @@ fun HomeScreen(
 @Composable
 private fun ReceiptRow(receipt: ReceiptEntity, onClick: () -> Unit) {
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(receipt.storeName ?: "Unknown store", style = MaterialTheme.typography.titleMedium)

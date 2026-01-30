@@ -28,17 +28,17 @@ Core Setup + OCR Foundation
 
 Task Details
 
-🔹Android Studio Setup - Created a new project in Kotlin.
+🔹Android Studio Setup - Created a new project in Kotlin. ✅
 
-🔹A ML Kit dependency is added and is implemented 'com.google.mlkit:text-recognition:16.0.0'
+🔹A ML Kit dependency is added and is implemented 'com.google.mlkit:text-recognition:16.0.0'✅
 
-🔹Built an image input flow	to allow user to capture or upload receipt by using camera & storage.
+🔹Built an image input flow	to allow user capture or upload receipt by using camera & storage.✅
 
-🔹Implemented the OCR to process and used the ML Kit to extract text from receipt and log the order to Logcat.
+🔹Implemented the OCR to process and used the ML Kit to extract text from receipt and log the order to Logcat.✅
 
-🔹Parsed text into key fields it extracts the item name, price, quantity, total amount, and the store name.
+🔹Parsed text into key fields it extracts the item name, price, quantity, total amount, and the store name.~ somewhat completed
 
-🔹It stores sample outputs and saves the OCR text as CSV for quick testing.
+🔹It stores sample outputs and saves the OCR text as CSV for quick testing. ✅
 
 
 #### Nov - Dec
@@ -46,17 +46,17 @@ Data Storage + App Skeleton (Backend + Basic UI)
 
 Task Details
 
-🔹 Create Room Database	Entities: Receipt, Item, Emotion.
+🔹 Create Room Database	Entities: Receipt, Item, Emotion.✅
 
-🔹 Implement DAOs & Repository	Handle insert, update, delete, query.
+🔹 Implement DAOs & Repository	Handle insert, update, delete, query.✅
 
-🔹 Build ViewModel	To bridge UI ↔ data safely.
+🔹 Build ViewModel	To bridge UI ↔ data safely.✅
 
-🔹 Create basic screens	Home, Scan, Results, History.
+🔹 Create basic screens	Home, Scan, Results, History.✅
 
-🔹 Connect OCR to database	After scanning, save extracted receipt text to Room DB.
+🔹 Connect OCR to database	After scanning, save extracted receipt text to Room DB. ~ to some extent
 
-🔹 Add navigation	Use Navigation Component or simple intents.
+🔹 Add navigation	Use Navigation Component or simple intents.✅
 
 
 #### Jan - Feb
@@ -64,13 +64,13 @@ Emotional Input + Analytics Dashboard
 
 Task Details
 
-🔹 Added a regret score screen with a slider (1–10) and a text box for feelings (“Why did I buy this?”).
+🔹 Added a regret score screen with a slider (1–10) and a text box for feelings (“Why did I buy this?”).~ slider is completed + text box is there but can be improved 
 
-🔹 Linked the regret score to the receipts - Each receipt has 1 emotional entry.
+🔹 Linked the regret score to the receipts - Each receipt has 1 emotional entry. 
 
-🔹 Added “Did You Know?” popups, added random facts from my literature data.
+🔹 Added “Did You Know?” popups, added random facts from my literature data. ~ very basic, also needs enhancing
 
-🔹 Built an analytics dashboard that shows expenditure by category, average regret, etc.
+🔹 Built an analytics dashboard that shows expenditure by category, average regret, etc. ~ most products from receipts have been categorised but there can be more added 
 
 🔹 Use chart library	MPAndroidChart or Compose Charts.
 
