@@ -11,6 +11,7 @@ import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
 import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
 import com.example.impulsepurchaserecoverykit.database.models.WeeklySpend
 import com.example.impulsepurchaserecoverykit.database.models.WeeklyRegret
+import com.example.impulsepurchaserecoverykit.database.entities.ItemReactionEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.Flow
@@ -130,5 +131,32 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
         return repository.getWeeklyAverageRegret()
     }
 
+    fun addEmotionCheckIn(
+        receiptId: Long,
+        regretScore: Int,
+        mood: String,
+        notes: String?,
+        onDone: (() -> Unit)? = null
+    )
+    {
+        viewModelScope.launch {
+            try {
+                repository.addEmotionCheckIn(receiptId, regretScore, mood, notes)
+                loadStats()
+                onDone?.invoke()
+            }catch (e: Exception){
+                android.util.Log.e("ReceiptViewModel", "Error saving emotion check-in", e)
+            }
+        }
+    }
+    fun getItemReactionsForReceipt(receiptId: Long): Flow<List<ItemReactionEntity>> {
+        return repository.getItemReactionsForReceipt(receiptId)
+    }
+
+    fun setItemReaction(receiptId: Long, itemId: Long, reaction: Int) {
+        viewModelScope.launch {
+            repository.setItemReaction(receiptId, itemId, reaction)
+        }
+    }
 
 }

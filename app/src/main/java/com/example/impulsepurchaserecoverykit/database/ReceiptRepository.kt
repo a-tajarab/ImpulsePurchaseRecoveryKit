@@ -2,12 +2,14 @@ package com.example.impulsepurchaserecoverykit.database
 
 import com.example.impulsepurchaserecoverykit.ImpulseScorer
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
+import com.example.impulsepurchaserecoverykit.database.entities.EmotionEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
 import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
 import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
 import com.example.impulsepurchaserecoverykit.database.models.WeeklySpend
 import com.example.impulsepurchaserecoverykit.database.models.WeeklyRegret
+import com.example.impulsepurchaserecoverykit.database.entities.ItemReactionEntity
 
 import kotlinx.coroutines.flow.Flow
 
@@ -16,6 +18,7 @@ class ReceiptRepository(private val database: AppDatabase) {
     private val receiptDao = database.receiptDao()
     private val itemDao = database.itemDao()
     private val emotionDao = database.emotionDao()
+    private val itemReactionDao = database.itemReactionDao()
 
     // ========== Receipt Operations ==========
 
@@ -170,5 +173,42 @@ class ReceiptRepository(private val database: AppDatabase) {
     }
 
 
+    suspend fun addEmotionCheckIn(
+        receiptId: Long,
+        regretScore: Int,
+        mood: String,
+        notes: String?
+    ){
+        emotionDao.insertEmotion(
+            EmotionEntity(
+                receiptId = receiptId,
+                regretScore = regretScore,
+                mood = mood,
+                notes = notes
+            )
+        )
+
+        val receipt = receiptDao.getReceiptById(receiptId) ?: return
+        val updated = receipt.copy(
+            regretScore = regretScore,
+            emotionalNote = notes,
+            updatedAt = System.currentTimeMillis()
+        )
+        receiptDao.updateReceipt(updated)
+    }
+
+    suspend fun setItemReaction(receiptId: Long, itemId: Long, reaction: Int) {
+        itemReactionDao.upsertReaction(
+            ItemReactionEntity(
+                itemId = itemId,
+                receiptId = receiptId,
+                reaction = reaction
+            )
+        )
+    }
+
+    fun getItemReactionsForReceipt(receiptId: Long): Flow<List<ItemReactionEntity>> {
+        return itemReactionDao.getReactionsForReceipt(receiptId)
+    }
 
 }

@@ -296,13 +296,13 @@ class ReceiptParser {
 
             // Your generator outputs: [item prices...] then [subtotal, tax, total] at the very end.
             // Remove last 3 if possible so totals don't get paired as items.
-            val itemPrices = prices.toMutableList()
-            if (itemPrices.size >= 3) {
-                itemPrices.removeAt(itemPrices.lastIndex) // total
-                itemPrices.removeAt(itemPrices.lastIndex) // tax
-                itemPrices.removeAt(itemPrices.lastIndex) // subtotal
-            }
-
+            val itemPrices = prices.take(itemNames.size)
+            //if (itemPrices.size >= 3) {
+                //itemPrices.removeAt(itemPrices.lastIndex) // total
+                //itemPrices.removeAt(itemPrices.lastIndex) // tax
+                //itemPrices.removeAt(itemPrices.lastIndex) // subtotal
+            //}
+            Log.d("PARSER", "Block pairing: itemNames=${itemNames.size}, prices=${prices.size}, itemPricesUsed=${itemPrices.size}")
             val pairCount = minOf(itemNames.size, itemPrices.size)
             for (i in 0 until pairCount) {
                 val name = itemNames[i]
