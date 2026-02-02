@@ -139,12 +139,29 @@ private fun AnalysisSheetContent(
 
     val reactions by viewModel.getItemReactionsForReceipt(receiptId)
         .collectAsState(initial = emptyList())
+    val savedMap = remember(reactions){
+        reactions.associate { it.itemId to it.reaction }
+    }
+
+    val draftMap = remember(receiptId) {
+        mutableStateMapOf<Long, Int>()
+    }
+
+    LaunchedEffect(savedMap) {
+        draftMap.clear()
+        draftMap.putAll(savedMap)
+    }
+
+    val hasUnsavedChanges = remember(savedMap, draftMap){
+        derivedStateOf { savedMap != draftMap.toMap() }
+    }
 
     val listState = rememberLazyListState()
 
     val reactionMap = remember(reactions) {
         reactions.associateBy { it.itemId }
     }
+
 
     LazyColumn(
         state = listState,
@@ -175,14 +192,14 @@ private fun AnalysisSheetContent(
                 }
             }
         }
-        val positives = reactions.count {it.reaction == 1}
-        val neutrals = reactions.count {it.reaction == 0}
-        val negatives = reactions.count {it.reaction == -1}
+        val positives = draftMap.values.count {it == 1}
+        val neutrals = draftMap.values.count {it == 0}
+        val negatives = draftMap.values.count {it == -1}
 
         val totalRated = positives + neutrals + negatives
         val moodLabel = when {
             totalRated == 0 -> "Not rated yet"
-            positives >= positives + 2 -> "Good shop 🙂"
+            positives >= negatives + 2 -> "Good shop 🙂"
             negatives >= positives + 2 -> "Regretful shop 🙁"
             else -> "Mixed feelings 😐"
         }
@@ -204,9 +221,9 @@ private fun AnalysisSheetContent(
             items(items, key = {it.id}) { item ->
                 ItemReactionRow(
                     itemName = item.name,
-                    selectedReaction = reactionMap[item.id]?.reaction,
+                    selectedReaction = draftMap[item.id],
                     onReact = { newReaction ->
-                        viewModel.setItemReaction(receiptId, item.id, newReaction)
+                        draftMap[item.id] = newReaction
                     }
                 )
             }
@@ -216,6 +233,33 @@ private fun AnalysisSheetContent(
                 Text("Close")
             }
             Spacer(Modifier.height(12.dp))
+        }
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ){
+                OutlinedButton(
+                    onClick = {
+                        draftMap.clear()
+                        draftMap.putAll(savedMap)
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = hasUnsavedChanges.value
+                ) {
+                    Text("Discard")
+                }
+                Button(
+                    onClick = {
+                        viewModel.saveItemReactions(receiptId, draftMap.toMap())
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = hasUnsavedChanges.value
+                )
+                {
+                    Text("Save changes")
+                }
+            }
         }
     }
 }
