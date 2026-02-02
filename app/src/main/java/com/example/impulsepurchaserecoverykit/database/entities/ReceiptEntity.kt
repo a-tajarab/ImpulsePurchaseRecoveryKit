@@ -29,5 +29,8 @@ data class ReceiptEntity(
 
     // Timestamps
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+
+    val userSentimentScore: Int? = null,
+    val userSentimentLabel: String? = null
 )

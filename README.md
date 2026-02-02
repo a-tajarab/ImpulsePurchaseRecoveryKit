@@ -64,7 +64,7 @@ Emotional Input + Analytics Dashboard
 
 Task Details
 
-🔹 Added a regret score screen with a slider (1–10) and a text box for feelings (“Why did I buy this?”).~ slider is completed + text box is there but can be improved 
+🔹 Added a regret score screen with a slider (1–10) and a text box for feelings (“Why did I buy this?”).~ slider is completed + text box is there but can be improved ✅
 
 🔹 Linked the regret score to the receipts - Each receipt has 1 emotional entry. 
 

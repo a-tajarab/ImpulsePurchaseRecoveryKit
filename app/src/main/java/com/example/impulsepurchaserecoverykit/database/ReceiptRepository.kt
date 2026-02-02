@@ -39,7 +39,7 @@ class ReceiptRepository(private val database: AppDatabase) {
             imageUri = imageUri,
 
             impulseScore = impulse.score,
-            impulseLabel =  impulse.label.name,
+            impulseLabel = impulse.label.name,
             impulseReasonsJson = impulse.reasonsJson()
         )
 
@@ -178,7 +178,7 @@ class ReceiptRepository(private val database: AppDatabase) {
         regretScore: Int,
         mood: String,
         notes: String?
-    ){
+    ) {
         emotionDao.insertEmotion(
             EmotionEntity(
                 receiptId = receiptId,
@@ -211,4 +211,41 @@ class ReceiptRepository(private val database: AppDatabase) {
         return itemReactionDao.getReactionsForReceipt(receiptId)
     }
 
+
+    private fun calcUserSentiment(reactions: List<ItemReactionEntity>): Pair<Int, String> {
+        if (reactions.isEmpty()) return 50 to "MIXED"
+
+        val avg = reactions.map { it.reaction }.average()
+        val score = ((avg + 1.0) / 2.0 * 100.0).toInt().coerceIn(0, 100)
+
+        val label = when {
+            score >= 67 -> "GOOD"
+            score <= 33 -> "BAD"
+            else -> "MIXED"
+        }
+        return score to label
+    }
+
+    suspend fun saveItemReactions(receiptId: Long, reactionsMap: Map<Long, Int>) {
+        val entities = reactionsMap.map { (itemId, reaction) ->
+            ItemReactionEntity(
+                itemId = itemId,
+                receiptId = receiptId,
+                reaction = reaction
+            )
+        }
+        itemReactionDao.upsertReactions(entities)
+
+        val allReactions = itemReactionDao.getReactionsForReceiptOnce(receiptId)
+        val (score, label) = calcUserSentiment(allReactions)
+
+        val receipt = receiptDao.getReceiptById(receiptId) ?: return
+        receiptDao.updateReceipt(
+            receipt.copy(
+                userSentimentScore = score,
+                userSentimentLabel = label,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+    }
 }

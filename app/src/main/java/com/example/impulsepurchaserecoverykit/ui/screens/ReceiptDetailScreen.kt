@@ -78,6 +78,7 @@ fun ReceiptDetailScreen(
         Text("Tax: £${receipt.tax ?: "—"}")
         Text("Total: £${receipt.totalAmount ?: "—"}")
         Text("Regret: ${receipt.regretScore?.toString() ?: "Not rated"}")
+        Text("Your sentiment: ${receipt.userSentimentLabel ?: "—"} (${receipt.userSentimentScore ?: "—"}/100)")
 
         Divider()
 
