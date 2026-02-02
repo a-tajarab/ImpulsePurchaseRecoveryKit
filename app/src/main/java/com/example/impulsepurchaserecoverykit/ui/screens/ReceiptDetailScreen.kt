@@ -42,8 +42,8 @@ fun ReceiptDetailScreen(
             // optional: skipPartiallyExpanded = true, // if you want
         ) {
             AnalysisSheetContent(
-                //receiptId = receiptId,
-                //viewModel = viewModel,
+                receiptId = receiptId,
+                viewModel = viewModel,
                 receiptImpulseLabel = receipt?.impulseLabel,
                 receiptImpulseScore = receipt?.impulseScore,
                 impulseReasonsJson = receipt?.impulseReasonsJson,
@@ -124,8 +124,8 @@ fun ReceiptDetailScreen(
 
 @Composable
 private fun AnalysisSheetContent(
-    //receiptId: Long,
-    //viewModel: ReceiptViewModel,
+    receiptId: Long,
+    viewModel: ReceiptViewModel,
     receiptImpulseLabel: String?,
     receiptImpulseScore: Int?,
     impulseReasonsJson: String?,
@@ -136,14 +136,14 @@ private fun AnalysisSheetContent(
         parseReasons(impulseReasonsJson)
     }
 
-    //val reactions by viewModel.getItemReactionsForReceipt(receiptId)
-        //.collectAsState(initial = emptyList())
+    val reactions by viewModel.getItemReactionsForReceipt(receiptId)
+        .collectAsState(initial = emptyList())
 
     val listState = rememberLazyListState()
 
-    //val reactionMap = remember(reactions) {
-        //reactions.associateBy { it.itemId }
-    //}
+    val reactionMap = remember(reactions) {
+        reactions.associateBy { it.itemId }
+    }
 
     LazyColumn(
         state = listState,
@@ -174,6 +174,26 @@ private fun AnalysisSheetContent(
                 }
             }
         }
+        val positives = reactions.count {it.reaction == 1}
+        val neutrals = reactions.count {it.reaction == 0}
+        val negatives = reactions.count {it.reaction == -1}
+
+        val totalRated = positives + neutrals + negatives
+        val moodLabel = when {
+            totalRated == 0 -> "Not rated yet"
+            positives >= positives + 2 -> "Good shop 🙂"
+            negatives >= positives + 2 -> "Regretful shop 🙁"
+            else -> "Mixed feelings 😐"
+        }
+        item {
+            ElevatedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)){
+                    Text("Your feelings so far", style = MaterialTheme.typography.titleMedium)
+                    Text(moodLabel)
+                    Text("🙂 $positives   😐 $neutrals   🙁 $negatives")
+                }
+            }
+        }
         item {
             Text("How did each item feel?", style = MaterialTheme.typography.titleMedium)
         }
@@ -183,8 +203,9 @@ private fun AnalysisSheetContent(
             items(items, key = {it.id}) { item ->
                 ItemReactionRow(
                     itemName = item.name,
-                    selectedReaction = null,
-                    onReact = {
+                    selectedReaction = reactionMap[item.id]?.reaction,
+                    onReact = { newReaction ->
+                        viewModel.setItemReaction(receiptId, item.id, newReaction)
                     }
                 )
             }

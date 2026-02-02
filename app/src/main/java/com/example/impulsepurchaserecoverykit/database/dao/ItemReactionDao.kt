@@ -15,4 +15,8 @@ interface ItemReactionDao {
 
     @Query("SELECT * FROM item_reactions WHERE receiptId = :receiptId")
     fun getReactionsForReceipt(receiptId: Long): Flow<List<ItemReactionEntity>>
+
+    @Query("SELECT * FROM item_reactions WHERE itemId = :itemId LIMIT 1 ")
+    suspend fun getReactionForItem(itemId: Long): ItemReactionEntity?
+
 }
