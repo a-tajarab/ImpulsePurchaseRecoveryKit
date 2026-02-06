@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
                 "Scanning receipt...",
                 Toast.LENGTH_SHORT
             ).show()
+            Log.d("SCAN_URI", "Scanning URI: $imageUri")
             val extractedText = receiptScanner.scanReceipt(imageUri)
             if (extractedText == null) {
                 Toast.makeText(
