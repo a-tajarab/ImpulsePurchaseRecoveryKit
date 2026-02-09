@@ -134,11 +134,17 @@ class ReceiptParser {
             true
         }.toMutableList()
 
+        val startIndex = lines.indexOfFirst { looksLikeDateOrTime(it) }.let { if (it == -1) 0 else it + 1 }
+
+
         val nameCandidates = mutableListOf<String>()
-        for (line in lines) {
+        for (i in startIndex until lines.size) {
+            val line = lines[i]
             if (isNoiseLine(line)) continue
 
             val lower = line.lowercase()
+
+            if (isNonItemHeaderLine(line)) continue
 
             // skip store name
             if (lowerStore != null && lower == lowerStore) continue
@@ -464,4 +470,27 @@ class ReceiptParser {
         }
         return if (amounts.size >= 2) amounts[amounts.size - 2] else null
     }
+    private fun isNonItemHeaderLine(line: String): Boolean {
+        val l = line.lowercase().trim()
+
+        val badPhrases = listOf(
+            "order confirmation",
+            "order summary",
+            "order details",
+            "delivery:",
+            "delivery address",
+            "shipping",
+            "billing",
+            "payment method",
+            "thank you for your order",
+            "track your order",
+            "returns",
+            "customer service"
+        )
+
+        return badPhrases.any { it in l }
+    }
+
+
+
 }
