@@ -1,7 +1,9 @@
 package com.example.impulsepurchaserecoverykit.database
 
+import androidx.room.withTransaction
 import com.example.impulsepurchaserecoverykit.ImpulseScorer
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
+import com.example.impulsepurchaserecoverykit.database.dao.ItemReactionDao
 import com.example.impulsepurchaserecoverykit.database.entities.EmotionEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
@@ -19,6 +21,7 @@ class ReceiptRepository(private val database: AppDatabase) {
     private val itemDao = database.itemDao()
     private val emotionDao = database.emotionDao()
     private val itemReactionDao = database.itemReactionDao()
+
 
     // ========== Receipt Operations ==========
 
@@ -212,40 +215,36 @@ class ReceiptRepository(private val database: AppDatabase) {
     }
 
 
-    private fun calcUserSentiment(reactions: List<ItemReactionEntity>): Pair<Int, String> {
-        if (reactions.isEmpty()) return 50 to "MIXED"
+    private fun calcUserSentiment(reactions: List<ItemReactionEntity>): Pair<Double?, String?> {
+        if (reactions.isEmpty()) return null to null
 
         val avg = reactions.map { it.reaction }.average()
-        val score = ((avg + 1.0) / 2.0 * 100.0).toInt().coerceIn(0, 100)
+        val percent = (((avg + 1.0) / 2.0) * 100.0).coerceIn(0.0, 100.0)
 
         val label = when {
-            score >= 67 -> "GOOD"
-            score <= 33 -> "BAD"
+            percent >= 67.0 -> "GOOD"
+            percent <= 33.0 -> "BAD"
             else -> "MIXED"
         }
-        return score to label
+        return percent to label
     }
 
-    suspend fun saveItemReactions(receiptId: Long, reactionsMap: Map<Long, Int>) {
-        val entities = reactionsMap.map { (itemId, reaction) ->
-            ItemReactionEntity(
-                itemId = itemId,
-                receiptId = receiptId,
-                reaction = reaction
-            )
+    suspend fun saveItemReactions(receiptId: Long, draft: Map<Long, Int>) {
+        database.withTransaction {
+            val rows = draft.map { (itemId, reaction) ->
+                ItemReactionEntity(
+                    itemId = itemId,
+                    receiptId = receiptId,
+                    reaction = reaction
+                )
+            }
+            itemReactionDao.upsertAll(rows)
+            itemReactionDao.deleteNotIn(receiptId, draft.keys.toList())
+
+            val (score, label) = calcUserSentiment(rows)
+            receiptDao.updateUserSentiment(receiptId, score, label)
+
         }
-        itemReactionDao.upsertReactions(entities)
-
-        val allReactions = itemReactionDao.getReactionsForReceiptOnce(receiptId)
-        val (score, label) = calcUserSentiment(allReactions)
-
-        val receipt = receiptDao.getReceiptById(receiptId) ?: return
-        receiptDao.updateReceipt(
-            receipt.copy(
-                userSentimentScore = score,
-                userSentimentLabel = label,
-                updatedAt = System.currentTimeMillis()
-            )
-        )
     }
 }
+

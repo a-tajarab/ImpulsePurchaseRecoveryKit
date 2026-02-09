@@ -159,11 +159,10 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun saveItemReactions(receiptId: Long, reactionsMap: Map<Long, Int>, onDone: (() -> Unit)? = null) {
+    fun saveItemReactions(receiptId: Long, draft: Map<Long, Int>) {
         viewModelScope.launch {
             try {
-                repository.saveItemReactions(receiptId, reactionsMap)
-                onDone?.invoke()
+                repository.saveItemReactions(receiptId, draft)
             } catch (e: Exception) {
                 android.util.Log.e("ReceiptViewModel", "Error saving item reactions", e)
             }

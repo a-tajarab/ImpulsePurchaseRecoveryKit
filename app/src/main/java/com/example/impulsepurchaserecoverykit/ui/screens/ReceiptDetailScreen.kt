@@ -152,7 +152,7 @@ private fun AnalysisSheetContent(
         draftMap.putAll(savedMap)
     }
 
-    val hasUnsavedChanges = remember(savedMap, draftMap){
+    val hasUnsavedChanges by remember(savedMap){
         derivedStateOf { savedMap != draftMap.toMap() }
     }
 
@@ -245,7 +245,7 @@ private fun AnalysisSheetContent(
                         draftMap.putAll(savedMap)
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = hasUnsavedChanges.value
+                    enabled = hasUnsavedChanges
                 ) {
                     Text("Discard")
                 }
@@ -254,7 +254,7 @@ private fun AnalysisSheetContent(
                         viewModel.saveItemReactions(receiptId, draftMap.toMap())
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = hasUnsavedChanges.value
+                    enabled = hasUnsavedChanges
                 )
                 {
                     Text("Save changes")

@@ -69,6 +69,12 @@ interface ReceiptDao {
 """)
     fun getWeeklyAverageRegret(): Flow<List<WeeklyRegret>>
 
-
+    @Query("""
+        UPDATE receipts
+        SET userSentimentScore = :score,
+            userSentimentLabel = :label
+        WHERE id = :receiptId
+    """)
+    suspend fun updateUserSentiment(receiptId: Long, score: Double?, label: String?)
 
 }

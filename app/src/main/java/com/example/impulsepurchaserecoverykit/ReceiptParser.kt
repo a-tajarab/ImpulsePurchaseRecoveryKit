@@ -2,7 +2,7 @@ package com.example.impulsepurchaserecoverykit
 
 import android.util.Log
 import java.util.regex.Pattern
-import kotlin.math.min
+
 
 class ReceiptParser {
     /**
