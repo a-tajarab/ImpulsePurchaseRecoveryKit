@@ -30,43 +30,45 @@ class ReceiptRepository(private val database: AppDatabase) {
      * Save a parsed receipt to the database
      */
     suspend fun saveReceipt(parsedReceipt: ParsedReceipt, imageUri: String?): Long {
-        val impulse = ImpulseScorer.score(parsedReceipt)
+        return database.withTransaction {
+            val impulse = ImpulseScorer.score(parsedReceipt)
 
-        // Create receipt entity
-        val receiptEntity = ReceiptEntity(
-            storeName = parsedReceipt.storeName,
-            purchaseDate = parsedReceipt.purchaseDate,
-            totalAmount = parsedReceipt.total,
-            subtotal = parsedReceipt.subtotal,
-            tax = parsedReceipt.tax,
-            rawOcrText = parsedReceipt.rawText,
-            imageUri = imageUri,
+            // Create receipt entity
+            val receiptEntity = ReceiptEntity(
+                storeName = parsedReceipt.storeName,
+                purchaseDate = parsedReceipt.purchaseDate,
+                totalAmount = parsedReceipt.total,
+                subtotal = parsedReceipt.subtotal,
+                tax = parsedReceipt.tax,
+                rawOcrText = parsedReceipt.rawText,
+                imageUri = imageUri,
 
-            impulseScore = impulse.score,
-            impulseLabel = impulse.label.name,
-            impulseReasonsJson = impulse.reasonsJson()
-        )
-
-        // Insert receipt and get its ID
-        val receiptId = receiptDao.insertReceipt(receiptEntity)
-
-        // Create item entities linked to this receipt
-        val itemEntities = parsedReceipt.items.map { parsedItem ->
-            ItemEntity(
-                receiptId = receiptId,
-                name = parsedItem.name,
-                price = parsedItem.price,
-                quantity = parsedItem.quantity,
-                category = parsedItem.category
+                impulseScore = impulse.score,
+                impulseLabel = impulse.label.name,
+                impulseReasonsJson = impulse.reasonsJson()
             )
-        }
 
-        // Insert all items
-        if (itemEntities.isNotEmpty()) {
-            itemDao.insertItems(itemEntities)
-        }
+            // Insert receipt and get its ID
+            val receiptId = receiptDao.insertReceipt(receiptEntity)
 
-        return receiptId
+            // Create item entities linked to this receipt
+            val itemEntities = parsedReceipt.items.map { parsedItem ->
+                ItemEntity(
+                    receiptId = receiptId,
+                    name = parsedItem.name,
+                    price = parsedItem.price,
+                    quantity = parsedItem.quantity,
+                    category = parsedItem.category
+                )
+            }
+
+            // Insert all items
+            if (itemEntities.isNotEmpty()) {
+                itemDao.insertItems(itemEntities)
+            }
+
+            receiptId
+        }
     }
 
     /**
