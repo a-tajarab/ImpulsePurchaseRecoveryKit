@@ -13,7 +13,7 @@ import android.widget.FrameLayout
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.core.app.ComponentActivity
+import androidx.activity.ComponentActivity
 
 fun renderReceiptToBitmap(activity: ComponentActivity, receipt: ReceiptData): Bitmap {
     // Measure/layout at a fixed size for consistent OCR
@@ -32,8 +32,9 @@ fun renderReceiptToBitmap(activity: ComponentActivity, receipt: ReceiptData): Bi
         setContent { ReceiptComposable(receipt) }
         layoutParams = ViewGroup.LayoutParams(width, height)
     }
-    host.addView(composeView)
-    host.addView(host)
+    root.addView(host)
+    root.addView(composeView)
+
 
     val wSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY)
     val hSpec = View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY)

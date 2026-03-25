@@ -75,6 +75,6 @@ interface ReceiptDao {
             userSentimentLabel = :label
         WHERE id = :receiptId
     """)
-    suspend fun updateUserSentiment(receiptId: Long, score: Double?, label: String?)
+    suspend fun updateUserSentiment(receiptId: Long, score: Int?, label: String?)
 
 }
