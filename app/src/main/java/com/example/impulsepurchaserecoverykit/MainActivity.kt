@@ -18,6 +18,7 @@ import com.example.impulsepurchaserecoverykit.debug.ReceiptDebugScreen
 import com.example.impulsepurchaserecoverykit.ui.theme.ImpulsePurchaseRecoveryKitTheme
 import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
 import com.example.impulsepurchaserecoverykit.ui.AppRoot
+import com.google.firebase.encoders.json.BuildConfig
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -37,8 +38,9 @@ class MainActivity : ComponentActivity() {
                         onScanReceiptPicked = { uri -> processReceipt(uri) }
 
                     )
-                    com.example.impulsepurchaserecoverykit.debug.ReceiptDebugFloatingButton()
-
+                    if (BuildConfig.DEBUG) {
+                        com.example.impulsepurchaserecoverykit.debug.ReceiptDebugFloatingButton()
+                    }
                 }
             }
         }

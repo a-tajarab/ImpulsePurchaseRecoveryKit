@@ -1,5 +1,6 @@
 package com.example.impulsepurchaserecoverykit.database
 
+import androidx.room.Query
 import androidx.room.withTransaction
 import com.example.impulsepurchaserecoverykit.ImpulseScorer
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
@@ -133,7 +134,7 @@ class ReceiptRepository(private val database: AppDatabase) {
      * Get average regret score
      */
     suspend fun getAverageRegretScore(): Double? {
-        return emotionDao.getAverageRegretScore()
+        return receiptDao.getAverageRegretScore()
     }
 
     /**
@@ -215,11 +216,11 @@ class ReceiptRepository(private val database: AppDatabase) {
     }
 
 
-    private fun calcUserSentiment(reactions: List<ItemReactionEntity>): Pair<Double?, String?> {
+    private fun calcUserSentiment(reactions: List<ItemReactionEntity>): Pair<Int?, String?> {
         if (reactions.isEmpty()) return null to null
 
         val avg = reactions.map { it.reaction }.average()
-        val percent = (((avg + 1.0) / 2.0) * 100.0).coerceIn(0.0, 100.0)
+        val percent = (((avg + 1.0) / 2.0) * 100.0).coerceIn(0.0, 100.0).toInt()
 
         val label = when {
             percent >= 67.0 -> "GOOD"

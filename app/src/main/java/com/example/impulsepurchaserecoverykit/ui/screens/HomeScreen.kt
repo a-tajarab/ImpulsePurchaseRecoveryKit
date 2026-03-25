@@ -77,7 +77,10 @@ private fun ReceiptRow(receipt: ReceiptEntity, onClick: () -> Unit) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(receipt.storeName ?: "Unknown store", style = MaterialTheme.typography.titleMedium)
             Text("Date: ${receipt.purchaseDate ?: "—"}")
-            Text("Total: £${receipt.totalAmount ?: "—"}")
+            Text("Total: ${
+                receipt.totalAmount?.let {"£%.2f".format(it) } ?: "-"
+            }"
+            )
             Text("Regret: ${receipt.regretScore?.toString() ?: "Not rated"}")
         }
     }

@@ -17,7 +17,7 @@ import androidx.room.PrimaryKey
     ],
     indices = [Index("receiptId")]
 )
-data class ItemEntity(
+data classItemEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
