@@ -97,7 +97,12 @@ fun AppRoot(
                     paddingValues = padding,
                     receiptId = receiptId,
                     viewModel = viewModel,
-                    onDone = { navController.popBackStack() }
+                    onDone = { navController.popBackStack() },
+                    onViewStats = {
+                        navController.navigate(Screen.Stats.route){
+                            popUpTo(Screen.Home.route)
+                        }
+                    }
                 )
             }
         }
