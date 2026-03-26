@@ -29,10 +29,23 @@ fun AppRoot(
                     NavigationBarItem(
                         selected = currentRoute == item.route,
                         onClick = {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            if (item.route == Screen.Home.route){
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = true
+                                    saveState = false
+                                }
                                 launchSingleTop = true
-                                restoreState = true
+                                restoreState = false
+                            }
+                            } else {
+                                navController.navigate(item.route){
+                                    popUpTo(navController.graph.findStartDestination().id){
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         },
                         icon = { Icon(item.icon, contentDescription = item.label) },
@@ -97,10 +110,20 @@ fun AppRoot(
                     paddingValues = padding,
                     receiptId = receiptId,
                     viewModel = viewModel,
-                    onDone = { navController.popBackStack() },
+                    onDone = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                             },
                     onViewStats = {
-                        navController.navigate(Screen.Stats.route){
-                            popUpTo(Screen.Home.route)
+                        navController.navigate(Screen.Stats.route) {
+                            popUpTo(Screen.Home.route){
+                                inclusive = false
+                            }
+                            launchSingleTop = true
                         }
                     }
                 )
