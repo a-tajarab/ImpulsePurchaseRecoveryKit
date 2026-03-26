@@ -75,8 +75,9 @@ interface ReceiptDao {
             userSentimentLabel = :label
         WHERE id = :receiptId
     """)
-    suspend fun updateUserSentiment(receiptId: Long, score: Int?, label: String?)
+    suspend fun updateUserSentiment(receiptId: Long, score: Double?, label: String?)
 
     @Query("SELECT AVG(regretScore) FROM receipts WHERE regretScore IS NOT NULL")
-    suspend fun getAverageRegretScore(): Double?
+    fun getAverageRegretScoreFlow(): Flow<Double?>
+
 }

@@ -24,15 +24,14 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     // State for the UI
     private val _receiptCount = MutableStateFlow(0)
     val receiptCount: StateFlow<Int> = _receiptCount
-
-    private val _averageRegret = MutableStateFlow<Double?>(null)
-    val averageRegret: StateFlow<Double?> = _averageRegret
-
-    init {
+    lateinit var averageRegret: Flow<Double?>
+        private set
+    init{
         val database = AppDatabase.getDatabase(application)
         repository = ReceiptRepository(database)
 
-        // Load initial stats
+        averageRegret = repository.getAverageRegretScoreFlow()
+
         loadStats()
     }
 
@@ -92,7 +91,6 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     private fun loadStats() {
         viewModelScope.launch {
             _receiptCount.value = repository.getReceiptCount()
-            _averageRegret.value = repository.getAverageRegretScore()
         }
     }
 

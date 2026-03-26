@@ -1,6 +1,10 @@
 package com.example.impulsepurchaserecoverykit.ui.screens
 
+import android.R
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -21,11 +25,12 @@ fun StatsScreen(
     paddingValues: PaddingValues,
     viewModel: ReceiptViewModel
 ) {
+    // "Did you know? - show randomly on first open
     var showFact by remember { mutableStateOf((0..4).random() == 0) }
     val fact = remember { Facts.list.random() }
 
     val receiptCount by viewModel.receiptCount.collectAsState()
-    val avgRegret by viewModel.averageRegret.collectAsState()
+    val avgRegret by viewModel.averageRegret.collectAsState(initial = null)
 
     val totalSpend by viewModel.getTotalSpend().collectAsState(initial = 0.0)
     val topRegretReceipts by viewModel.getTopRegretReceipts(3).collectAsState(initial = emptyList())
@@ -34,6 +39,9 @@ fun StatsScreen(
     val weeklySpend by viewModel.getWeeklySpend().collectAsState(initial = emptyList())
 
     val weeklyAvgRegret by viewModel.getWeeklyAverageRegret().collectAsState(initial = emptyList())
+
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("Spending", "Regret", "Categories")
 
 
     if (showFact) {
@@ -47,107 +55,203 @@ fun StatsScreen(
         )
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .padding(paddingValues)
-            .padding(16.dp)
             .fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Stats", style = MaterialTheme.typography.headlineSmall)
+        item {
+            Text("Stats", style = MaterialTheme.typography.headlineSmall)
+        }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatCard(
+                    title = "Receipts logged",
+                    value = receiptCount.toString(),
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    title = "Total spend",
+                    value = "£${String.format("%.2f", totalSpend ?: 0.0)}",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        item {
             StatCard(
-                title = "Receipts",
-                value = receiptCount.toString(),
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                title = "Total spend",
-                value = "£${String.format("%.2f", totalSpend ?: 0.0)}",
-                modifier = Modifier.weight(1f)
+                title = "Average regret score",
+                value = "${avgRegret?.let { String.format("%.1f", it) } ?: "—"} / 10",
+                modifier = Modifier.fillMaxWidth()
             )
         }
-
-        StatCard(
-            title = "Average regret",
-            value = "${avgRegret?.let { String.format("%.1f", it) } ?: "—"} / 10",
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        HorizontalDivider()
-
-        // ===== Top regret receipts =====
-        Text("Top regret purchases", style = MaterialTheme.typography.titleMedium)
-
-        if (topRegretReceipts.isEmpty()) {
-            Text("No regret scores yet. Rate a few purchases to see insights.")
-        } else {
-            topRegretReceipts.forEach { receipt ->
-                TopRegretRow(receipt)
+        item{
+            TabRow(selectedTabIndex = selectedTab){
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) }
+                    )
+                }
             }
         }
 
-        HorizontalDivider()
-
-        Text("Impulse Tracker (weekly spend)", style = MaterialTheme.typography.titleMedium)
-
-        if (weeklySpend.size < 2) {
-            Text("Scan receipts over time to see a weekly trend.")
-        } else {
-            WeeklySpendLineChart(data = weeklySpend)
-
-            // Optional: show readable week labels under the chart
-            val fmt = remember { SimpleDateFormat("dd MMM", Locale.getDefault()) }
-            Spacer(Modifier.height(8.dp))
-            weeklySpend.takeLast(4).forEach { w ->
-                Text("${fmt.format(Date(w.weekStart))}: £${String.format("%.2f", w.total)}")
+        if (selectedTab == 0){
+            item {
+                Text(
+                    "Weekly Spend",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+            if (weeklySpend.size < 2){
+                item {
+                    Text(
+                        "Scan receipts over multiple days to see a weekly trend.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else{
+                item{
+                    ElevatedCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp)){
+                            WeeklySpendLineChart(data = weeklySpend)
+                            Spacer(Modifier.height(8.dp))
+                            val fmt = remember { SimpleDateFormat("dd MMM", Locale.getDefault()) }
+                            weeklySpend.takeLast(4).forEach { w ->
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ){
+                                    Text(
+                                        fmt.format(Date(w.weekStart)),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        "£${String.format("%.2f", w.total)}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        Text("Weekly regret trend", style = MaterialTheme.typography.titleMedium)
-
-        if (weeklyAvgRegret.size < 2) {
-            Text("Rate a few receipts over time to see your regret trend.")
-        } else {
-            WeeklyRegretLineChart(data = weeklyAvgRegret)
-
-            val last = weeklyAvgRegret.last().avgRegret
-            val prev = weeklyAvgRegret.dropLast(1).lastOrNull()?.avgRegret
-
-            Spacer(Modifier.height(8.dp))
-            Text("Latest weekly avg regret: ${String.format("%.1f", last)} / 10")
-
-            if (prev != null) {
-                val diff = last - prev
-                val direction = if (diff >= 0) "up" else "down"
-                Text("Compared to previous week: ${direction} ${String.format("%.1f", kotlin.math.abs(diff))}")
+        // - Tab: Regret -
+        if (selectedTab == 1){
+            item{
+                Text("Weekly regret trend", style = MaterialTheme.typography.titleMedium)
             }
-        }
+            if (weeklyAvgRegret.size < 2) {
+                item {
+                    Text(
+                        "Rate a few receipts over time to see your regret trend.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                    item {
+                        ElevatedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp)){
+                                WeeklyRegretLineChart(data = weeklyAvgRegret)
+                                Spacer(Modifier.height(8.dp))
 
-        HorizontalDivider()
+                                val last = weeklyAvgRegret.last().avgRegret
+                                val prev = weeklyAvgRegret.dropLast(1).lastOrNull()?.avgRegret
 
-        // ===== Spend by category (text for now) =====
-        Text("Spend by category", style = MaterialTheme.typography.titleMedium)
-
-        if (spendByCategory.isEmpty()) {
-            Text("No category data yet. Scan a receipt first.")
-        } else {
-            val top = spendByCategory.take(5)
-
-            CategorySpendBarChart(data = top)
-
-            // Optional: keep the list underneath for exact numbers
-            Spacer(Modifier.height(8.dp))
-            top.forEach { row ->
-                Text("${row.category}: £${String.format("%.2f", row.total)}")
+                                Text(
+                                    "Latest weekly avg: ${String.format("%.1f", last)} / 10",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                if (prev != null){
+                                    val diff = last - prev
+                                    val arrow = if (diff >= 0) "↑" else "↓"
+                                    val colour = if (diff >= 0)
+                                        MaterialTheme.colorScheme.error
+                                    else
+                                        MaterialTheme.colorScheme.primary
+                                    Text(
+                                        "$arrow ${String.format("%.1f", kotlin.math.abs(diff))} vs previous week",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colour
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    HorizontalDivider()
+                    Spacer(Modifier.height(4.dp))
+                    // ===== Top regret receipts =====
+                    Text("Top regret purchases", style = MaterialTheme.typography.titleMedium)
+                }
+                if (topRegretReceipts.isEmpty()){
+                    item{
+                        Text(
+                            "No regret score yet. Rate a few purchases to see insights.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    items(topRegretReceipts, key = {it.id}) { receipt ->
+                        TopRegretRow(receipt)
+                    }
+                }
             }
-        }
+            if (selectedTab == 2){
+                item {
+                    Text("Spend by category", style = MaterialTheme.typography.titleMedium)
+                }
+                if (spendByCategory.isEmpty()){
+                    item {
+                        Text(
+                            "No category data yet. Scan a receipt first.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    val top = spendByCategory.take(6)
+                    item{
+                        ElevatedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp)) {
+                                CategorySpendBarChart(data = top)
+                                Spacer(Modifier.height(8.dp))
+                                top.forEach { row ->
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ){
+                                        Text(
+                                            row.category.replaceFirstChar { it.uppercase() },
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        Text(
+                                            "£${String.format("%.2f", row.total)}",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        item { Spacer(Modifier.height(32.dp)) }
     }
 }
+
 @Composable
 private fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
     ElevatedCard(modifier = modifier) {
@@ -168,7 +272,10 @@ private fun TopRegretRow(receipt: ReceiptEntity) {
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(receipt.storeName ?: "Unknown store", style = MaterialTheme.typography.titleMedium)
+            Text(
+                receipt.storeName ?: "Unknown store",
+                style = MaterialTheme.typography.titleMedium
+            )
             Text("Regret: ${receipt.regretScore ?: "—"} / 10")
             Text("Total: £${receipt.totalAmount ?: "—"}")
             Text("Date: ${receipt.purchaseDate ?: "—"}")

@@ -35,6 +35,7 @@ interface ItemDao {
     SELECT category AS category,
            SUM(price * quantity) AS total
     FROM items
+    WHERE category NOT IN ('stopKeywords', 'other')
     GROUP BY category
     ORDER BY total DESC
 """)
@@ -44,6 +45,7 @@ interface ItemDao {
     SELECT category AS category,
            COUNT(*) AS count
     FROM items
+    WHERE category NOT IN ('stopKeywords', 'other')
     GROUP BY category
     ORDER BY count DESC
 """)

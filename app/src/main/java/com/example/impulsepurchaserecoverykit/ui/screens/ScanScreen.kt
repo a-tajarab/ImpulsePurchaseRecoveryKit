@@ -23,6 +23,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.withContext
@@ -48,13 +49,14 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if(result.resultCode == android.app.Activity.RESULT_OK){
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
             val uri = result.data?.data
-            if (uri != null){
+            if (uri != null) {
                 imageUris = listOf(uri) + imageUris
                 selectedIndex = 0
-        }} }
-
+            }
+        }
+    }
     if (!inPreview) {
         Scaffold(
             topBar = {
@@ -62,18 +64,18 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
                 TopAppBar(
                     title = { Text("Choose a receipt photo") },
                     actions = {
-                        IconButton(onClick = { menuExpanded = true}) {
+                        IconButton(onClick = { menuExpanded = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
                         }
                         DropdownMenu(
                             expanded = menuExpanded,
-                            onDismissRequest = {menuExpanded = false}
+                            onDismissRequest = { menuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = {Text("Browse files / albums")},
+                                text = { Text("Browse files / albums") },
                                 onClick = {
                                     menuExpanded = false
-                                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply{
+                                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                                         addCategory(Intent.CATEGORY_OPENABLE)
                                         type = "image/*"
                                     }
@@ -184,6 +186,7 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
         }
     }
 }
+
 private fun loadRecentImages(
     context: android.content.Context,
     limit: Int

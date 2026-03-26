@@ -1,6 +1,5 @@
 package com.example.impulsepurchaserecoverykit.database
 
-import androidx.room.Query
 import androidx.room.withTransaction
 import com.example.impulsepurchaserecoverykit.ImpulseScorer
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
@@ -30,45 +29,43 @@ class ReceiptRepository(private val database: AppDatabase) {
      * Save a parsed receipt to the database
      */
     suspend fun saveReceipt(parsedReceipt: ParsedReceipt, imageUri: String?): Long {
-        return database.withTransaction {
-            val impulse = ImpulseScorer.score(parsedReceipt)
+        val impulse = ImpulseScorer.score(parsedReceipt)
 
-            // Create receipt entity
-            val receiptEntity = ReceiptEntity(
-                storeName = parsedReceipt.storeName,
-                purchaseDate = parsedReceipt.purchaseDate,
-                totalAmount = parsedReceipt.total,
-                subtotal = parsedReceipt.subtotal,
-                tax = parsedReceipt.tax,
-                rawOcrText = parsedReceipt.rawText,
-                imageUri = imageUri,
+        // Create receipt entity
+        val receiptEntity = ReceiptEntity(
+            storeName = parsedReceipt.storeName,
+            purchaseDate = parsedReceipt.purchaseDate,
+            totalAmount = parsedReceipt.total,
+            subtotal = parsedReceipt.subtotal,
+            tax = parsedReceipt.tax,
+            rawOcrText = parsedReceipt.rawText,
+            imageUri = imageUri,
 
-                impulseScore = impulse.score,
-                impulseLabel = impulse.label.name,
-                impulseReasonsJson = impulse.reasonsJson()
+            impulseScore = impulse.score,
+            impulseLabel = impulse.label.name,
+            impulseReasonsJson = impulse.reasonsJson()
+        )
+
+        // Insert receipt and get its ID
+        val receiptId = receiptDao.insertReceipt(receiptEntity)
+
+        // Create item entities linked to this receipt
+        val itemEntities = parsedReceipt.items.map { parsedItem ->
+            ItemEntity(
+                receiptId = receiptId,
+                name = parsedItem.name,
+                price = parsedItem.price,
+                quantity = parsedItem.quantity,
+                category = parsedItem.category
             )
-
-            // Insert receipt and get its ID
-            val receiptId = receiptDao.insertReceipt(receiptEntity)
-
-            // Create item entities linked to this receipt
-            val itemEntities = parsedReceipt.items.map { parsedItem ->
-                ItemEntity(
-                    receiptId = receiptId,
-                    name = parsedItem.name,
-                    price = parsedItem.price,
-                    quantity = parsedItem.quantity,
-                    category = parsedItem.category
-                )
-            }
-
-            // Insert all items
-            if (itemEntities.isNotEmpty()) {
-                itemDao.insertItems(itemEntities)
-            }
-
-            receiptId
         }
+
+        // Insert all items
+        if (itemEntities.isNotEmpty()) {
+            itemDao.insertItems(itemEntities)
+        }
+
+        return receiptId
     }
 
     /**
@@ -135,8 +132,8 @@ class ReceiptRepository(private val database: AppDatabase) {
     /**
      * Get average regret score
      */
-    suspend fun getAverageRegretScore(): Double? {
-        return receiptDao.getAverageRegretScore()
+    fun getAverageRegretScoreFlow(): Flow<Double?> {
+        return receiptDao.getAverageRegretScoreFlow()
     }
 
     /**
@@ -218,11 +215,11 @@ class ReceiptRepository(private val database: AppDatabase) {
     }
 
 
-    private fun calcUserSentiment(reactions: List<ItemReactionEntity>): Pair<Int?, String?> {
+    private fun calcUserSentiment(reactions: List<ItemReactionEntity>): Pair<Double?, String?> {
         if (reactions.isEmpty()) return null to null
 
         val avg = reactions.map { it.reaction }.average()
-        val percent = (((avg + 1.0) / 2.0) * 100.0).coerceIn(0.0, 100.0).toInt()
+        val percent = (((avg + 1.0) / 2.0) * 100.0).coerceIn(0.0, 100.0)
 
         val label = when {
             percent >= 67.0 -> "GOOD"

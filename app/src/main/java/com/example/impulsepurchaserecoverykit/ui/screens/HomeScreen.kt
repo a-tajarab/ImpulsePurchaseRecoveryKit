@@ -19,7 +19,7 @@ fun HomeScreen(
     onReceiptClick: (Long) -> Unit
 ) {
     val receiptCount by viewModel.receiptCount.collectAsState()
-    val avgRegret by viewModel.averageRegret.collectAsState()
+    val avgRegret by viewModel.averageRegret.collectAsState(initial = null)
 
     val recentReceipts by viewModel.getRecentReceipts(5).collectAsState(initial = emptyList())
 
