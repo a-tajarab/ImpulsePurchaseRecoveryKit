@@ -4,7 +4,7 @@ sealed class Screen(val route: String) {
     data object Receipts : Screen("receipts")
     data object Stats : Screen("stats")
     data object Scan : Screen("scan")
-
+    data object Bot : Screen("bot")
     data object ReceiptDetail : Screen("receipt/{receiptId}") {
         fun create(receiptId: Long) = "receipt/$receiptId"
     }
