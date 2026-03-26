@@ -128,6 +128,9 @@ fun AppRoot(
                     }
                 )
             }
+            composable(Screen.Bot.route){
+                SuggestionBotScreen(paddingValues = padding)
+            }
         }
     }
 }
