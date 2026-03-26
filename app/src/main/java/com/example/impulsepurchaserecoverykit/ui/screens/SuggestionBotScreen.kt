@@ -22,6 +22,8 @@ import com.example.impulsepurchaserecoverykit.viewmodel.ChatMessage
 import com.example.impulsepurchaserecoverykit.viewmodel.SuggestionBotViewModel
 import kotlinx.coroutines.launch
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SuggestionBotScreen(
     paddingValues: PaddingValues,

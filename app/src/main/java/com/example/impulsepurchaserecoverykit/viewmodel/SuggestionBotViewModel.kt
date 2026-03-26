@@ -26,7 +26,8 @@ class SuggestionBotViewModel(application: Application) : AndroidViewModel(applic
         listOf(
             ChatMessage(
                 role = "assistant",
-                content = "Hi! I'm your spending coach 🤖 Ask me about a purchase you're considering, or how you're doing with your spending this month."
+                content = "Hi! I'm your spending coach 🤖 Ask me about a purchase you're considering, " +
+                        "or how you're doing with your spending this month."
             )
         )
     )
@@ -56,6 +57,9 @@ class SuggestionBotViewModel(application: Application) : AndroidViewModel(applic
                     .filter { !it.isLoading }
                     .map { it.role to it.content }
 
+                android.util.Log.d("BOT_DEBUG", "Key: ${BuildConfig.ANTHROPIC_API_KEY.take(15)}")
+                android.util.Log.d("BOT_DEBUG", "Sending ${apiMessages.size} messages")
+
                 val response = AnthropicApiClient.sendMessage(
                     apiKey = BuildConfig.ANTHROPIC_API_KEY,
                     systemPrompt = systemPrompt,
@@ -68,8 +72,9 @@ class SuggestionBotViewModel(application: Application) : AndroidViewModel(applic
                 )
 
             } catch (e: Exception) {
-                _error.value = "Couldn't reach the bot. Check your connection and try again."
-                android.util.Log.e("SuggestionBot", "API error", e)
+                _error.value = "Error: ${e.message}"
+                //_error.value = "Couldn't reach the bot. Check your connection and try again."
+                android.util.Log.e("BOT_DEBUG", "Full error", e)
             } finally {
                 _isLoading.value = false
             }
