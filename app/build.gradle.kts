@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.0"
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
@@ -16,6 +17,14 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val localProps = com.android.build.gradle.internal.cxx.configure
+            .gradleLocalProperties(rootDir, providers)
+        buildConfigField(
+            "String",
+            "ANTHROPIC_API_KEY",
+            "\"${localProps.getProperty("ANTHROPIC_API_KEY") ?: ""}\""
+        )
     }
 
     buildTypes {
@@ -39,6 +48,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -93,4 +103,6 @@ dependencies {
 
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }
