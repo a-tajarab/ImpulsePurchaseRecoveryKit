@@ -98,7 +98,16 @@ fun RegretScoreScreen(
 
         Button(
             onClick = {
-                viewModel.updateRegretScore(receiptId, score, note) {
+                viewModel.addEmotionCheckIn(
+                    receiptId,
+                    score,
+                    mood = when {
+                        score >= 8 -> "regretful"
+                        score >= 5 -> "neutral"
+                        else -> "satisfied"
+                    },
+                    notes = note.ifBlank { null }
+                ) {
                     if (score >= 8){
                         emotionalResponse = EmotionalResponseEngine.getResponse(
                             regretScore = score,
