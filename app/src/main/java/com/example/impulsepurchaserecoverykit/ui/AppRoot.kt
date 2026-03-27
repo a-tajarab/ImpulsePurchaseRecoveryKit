@@ -1,8 +1,10 @@
 package com.example.impulsepurchaserecoverykit.ui
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.example.impulsepurchaserecoverykit.navigation.Screen
@@ -18,21 +20,31 @@ fun AppRoot(
     onScanReceiptPicked: (Uri) -> Unit
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+
+    //This checks if the user has seen onboarding before
+    val prefs = remember {
+        context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+    }
 
     Scaffold(
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
 
-            if (currentRoute != Screen.Splash.route) {
+            // This hides the bottom nav on splash and onboarding
+            val hideNav = currentRoute == Screen.Splash.route ||
+                    currentRoute == Screen.Onboarding.route
+
+            if (hideNav){
                 NavigationBar {
                     bottomNavItems.forEach { item ->
                         NavigationBarItem(
                             selected = currentRoute == item.route,
                             onClick = {
-                                if (item.route == Screen.Home.route) {
-                                    navController.navigate(Screen.Home.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
+                                if(item.route == Screen.Home.route){
+                                    navController.navigate(Screen.Home.route){
+                                        popUpTo(navController.graph.findStartDestination().id){
                                             inclusive = true
                                             saveState = false
                                         }
@@ -40,8 +52,8 @@ fun AppRoot(
                                         restoreState = false
                                     }
                                 } else {
-                                    navController.navigate(item.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
+                                    navController.navigate(item.route){
+                                        popUpTo(navController.graph.findStartDestination().id){
                                             saveState = true
                                         }
                                         launchSingleTop = true
@@ -49,8 +61,8 @@ fun AppRoot(
                                     }
                                 }
                             },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) }
+                            icon = { Icon(item.icon, contentDescription = item.label)},
+                            label = { Text(item.label)}
                         )
                     }
                 }
@@ -64,10 +76,26 @@ fun AppRoot(
             composable(Screen.Splash.route){
                 SplashScreen(
                     onSplashComplete = {
-                        navController.navigate(Screen.Home.route){
+                        val hasSeenOnboarding = prefs.getBoolean("onboarding_complete", false)
+                        val destination = if (hasSeenOnboarding){
+                            Screen.Home.route
+                        } else {
+                            Screen.Onboarding.route
+                        }
+                        navController.navigate(destination){
                             popUpTo(Screen.Splash.route){
                                 inclusive = true
                             }
+                        }
+                    }
+                )
+            }
+            composable(Screen.Onboarding.route){
+                OnboardingScreen(
+                    onOnboardingComplete = {
+                        prefs.edit().putBoolean("onboarding_complete", true).apply()
+                        navController.navigate(Screen.Home.route){
+                            popUpTo(Screen.Onboarding.route){ inclusive = true}
                         }
                     }
                 )
