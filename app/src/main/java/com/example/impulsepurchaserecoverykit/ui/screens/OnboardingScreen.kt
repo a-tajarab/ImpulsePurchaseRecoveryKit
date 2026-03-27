@@ -138,7 +138,8 @@ fun OnboardingScreen(onOnboardingComplete: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 48.dp),
+                    .padding(bottom = 48.dp)
+                    .navigationBarsPadding(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Back button — hidden on first page

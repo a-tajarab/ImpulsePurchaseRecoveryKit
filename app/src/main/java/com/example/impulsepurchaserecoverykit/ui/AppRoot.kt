@@ -36,7 +36,7 @@ fun AppRoot(
             val hideNav = currentRoute == Screen.Splash.route ||
                     currentRoute == Screen.Onboarding.route
 
-            if (hideNav){
+            if (!hideNav){
                 NavigationBar {
                     bottomNavItems.forEach { item ->
                         NavigationBarItem(
