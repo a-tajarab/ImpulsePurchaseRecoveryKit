@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
@@ -25,6 +26,13 @@ fun AppRoot(
     //This checks if the user has seen onboarding before
     val prefs = remember {
         context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+    }
+    val ocrFailureReason by viewModel.ocrFailureReason.collectAsState()
+    LaunchedEffect(ocrFailureReason) {
+        ocrFailureReason?.let { reason ->
+            navController.navigate(Screen.OcrFailure.create(reason))
+            viewModel.setOcrFailureReason(null)
+        }
     }
 
     Scaffold(
@@ -173,6 +181,43 @@ fun AppRoot(
                             launchSingleTop = true
                         }
                     }
+                )
+            }
+
+            composable("ocr_failure/{reason}") { backStack ->
+                val reasonName = backStack.arguments?.getString("reason") ?: return@composable
+                val reason = OcrFailureReason.valueOf(reasonName)
+
+                OcrFailureScreen(
+                    paddingValues = padding,
+                    reason = reason,
+                    onTryAgain = {
+                        navController.navigate(Screen.Scan.route) {
+                            popUpTo(Screen.Home.route)
+                        }
+                    },
+                    onManualEntry = {
+                        navController.navigate(Screen.ManualEntry.route) {
+                            popUpTo(Screen.Home.route)
+                        }
+                    },
+                    onDismiss = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            composable(Screen.ManualEntry.route){
+                ManualEntryScreen(
+                    paddingValues = padding,
+                    viewModel = viewModel,
+                    onSaved = { receiptId ->
+                        navController.navigate(Screen.Regret.create(receiptId)){
+                            popUpTo(Screen.Home.route)
+                        }
+                    },
+                    onBack = { navController.popBackStack()}
                 )
             }
         }
