@@ -21,50 +21,64 @@ fun AppRoot(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
 
-                bottomNavItems.forEach { item ->
-                    NavigationBarItem(
-                        selected = currentRoute == item.route,
-                        onClick = {
-                            if (item.route == Screen.Home.route){
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    inclusive = true
-                                    saveState = false
-                                }
-                                launchSingleTop = true
-                                restoreState = false
-                            }
-                            } else {
-                                navController.navigate(item.route){
-                                    popUpTo(navController.graph.findStartDestination().id){
-                                        saveState = true
+            if (currentRoute != Screen.Splash.route) {
+                NavigationBar {
+                    bottomNavItems.forEach { item ->
+                        NavigationBarItem(
+                            selected = currentRoute == item.route,
+                            onClick = {
+                                if (item.route == Screen.Home.route) {
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            inclusive = true
+                                            saveState = false
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = false
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                } else {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
-                            }
-                        },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) }
-                    )
+                            },
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label) }
+                        )
+                    }
                 }
             }
         }
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route
+            startDestination = Screen.Splash.route
         ) {
+            composable(Screen.Splash.route){
+                SplashScreen(
+                    onSplashComplete = {
+                        navController.navigate(Screen.Home.route){
+                            popUpTo(Screen.Splash.route){
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
+            }
             composable(Screen.Home.route) {
                 HomeScreen(
                     paddingValues = padding,
                     viewModel = viewModel,
                     onScanClick = { navController.navigate(Screen.Scan.route) },
-                    onReceiptClick = { id -> navController.navigate(Screen.ReceiptDetail.create(id)) }
+                    onReceiptClick = { id ->
+                        navController.navigate(Screen.ReceiptDetail.create(id)) }
                 )
             }
 
@@ -81,12 +95,17 @@ fun AppRoot(
                 ReceiptListScreen(
                     paddingValues = padding,
                     viewModel = viewModel,
-                    onReceiptClick = { id -> navController.navigate(Screen.ReceiptDetail.create(id)) }
+                    onReceiptClick = { id ->
+                        navController.navigate(Screen.ReceiptDetail.create(id)) }
                 )
             }
 
             composable(Screen.Stats.route) {
                 StatsScreen(paddingValues = padding, viewModel = viewModel)
+            }
+
+            composable(Screen.Bot.route){
+                SuggestionBotScreen(paddingValues = padding)
             }
 
             composable(Screen.ReceiptDetail.route) { backStack ->
@@ -127,9 +146,6 @@ fun AppRoot(
                         }
                     }
                 )
-            }
-            composable(Screen.Bot.route){
-                SuggestionBotScreen(paddingValues = padding)
             }
         }
     }
