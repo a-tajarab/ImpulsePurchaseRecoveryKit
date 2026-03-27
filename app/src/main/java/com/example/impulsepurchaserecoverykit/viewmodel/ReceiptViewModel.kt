@@ -12,6 +12,7 @@ import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
 import com.example.impulsepurchaserecoverykit.database.models.WeeklySpend
 import com.example.impulsepurchaserecoverykit.database.models.WeeklyRegret
 import com.example.impulsepurchaserecoverykit.database.entities.ItemReactionEntity
+import com.example.impulsepurchaserecoverykit.ui.screens.OcrFailureReason
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +25,9 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     // State for the UI
     private val _receiptCount = MutableStateFlow(0)
     val receiptCount: StateFlow<Int> = _receiptCount
+    private val _ocrFailureReason = MutableStateFlow<OcrFailureReason?>(null)
+    val ocrFailureReason: StateFlow<OcrFailureReason?> = _ocrFailureReason
+
     lateinit var averageRegret: Flow<Double?>
         private set
     init{
@@ -37,6 +41,9 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
 
     // ========== Receipt Operations ==========
 
+    fun setOcrFailureReason(reason: OcrFailureReason?){
+        _orcFailureReason.value = reason
+    }
     /**
      * Save a scanned receipt to database
      */
