@@ -42,7 +42,7 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     // ========== Receipt Operations ==========
 
     fun setOcrFailureReason(reason: OcrFailureReason?){
-        _orcFailureReason.value = reason
+        _ocrFailureReason.value = reason
     }
     /**
      * Save a scanned receipt to database

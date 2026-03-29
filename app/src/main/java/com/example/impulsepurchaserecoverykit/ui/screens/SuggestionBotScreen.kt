@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -15,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -79,16 +81,32 @@ fun SuggestionBotScreen(
                         .imePadding(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = { Text("Ask about a purchase...") },
-                        modifier = Modifier.weight(1f),
-                        maxLines = 3,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(
-                            onSend = {
+                )
+                //verticalAlignment = Alignment.CenterVertically,
+                //horizontalArrangement = Arrangement.spacedBy(8.dp)
+                {
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            placeholder = { Text("Ask about a purchase...") },
+                            modifier = Modifier.weight(1f),
+                            maxLines = 3,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(
+                                onSend = {
+                                    if (inputText.isNotBlank() && !isLoading) {
+                                        botViewModel.sendMessage(inputText.trim())
+                                        inputText = ""
+                                        scope.launch {
+                                            listState.animateScrollToItem(messages.size)
+                                        }
+                                    }
+                                }
+                            )
+                        )
+
+                        FilledIconButton(
+                            onClick = {
                                 if (inputText.isNotBlank() && !isLoading) {
                                     botViewModel.sendMessage(inputText.trim())
                                     inputText = ""
@@ -96,27 +114,15 @@ fun SuggestionBotScreen(
                                         listState.animateScrollToItem(messages.size)
                                     }
                                 }
-                            }
-                        )
-                    )
-
-                    FilledIconButton(
-                        onClick = {
-                            if (inputText.isNotBlank() && !isLoading) {
-                                botViewModel.sendMessage(inputText.trim())
-                                inputText = ""
-                                scope.launch {
-                                    listState.animateScrollToItem(messages.size)
-                                }
-                            }
-                        },
-                        enabled = inputText.isNotBlank() && !isLoading
-                    ) {
-                        Icon(Icons.Default.Send, contentDescription = "Send")
+                            },
+                            enabled = inputText.isNotBlank() && !isLoading
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = "Send")
+                        }
                     }
                 }
             }
-        }
+
     ) { innerPadding ->
         LazyColumn(
             state = listState,
@@ -129,6 +135,19 @@ fun SuggestionBotScreen(
         ) {
             items(messages) { message ->
                 MessageBubble(message = message)
+            }
+
+            if (messages.size == 1) {
+                item {
+                    QuickSuggestionsCard(
+                        onSuggestionClick = { suggestion ->
+                            botViewModel.sendMessage(suggestion)
+                            scope.launch {
+                                listState.animateScrollToItem(messages.size + 1)
+                            }
+                        }
+                    )
+                }
             }
 
             if (isLoading) {
@@ -216,5 +235,52 @@ private fun TypingIndicator() {
                 style = MaterialTheme.typography.bodyMedium
             )
         }
+    }
+}
+
+
+@Composable
+private fun QuickSuggestionsCard(onSuggestionClick: (String) -> Unit) {
+    val suggestions = listOf(
+        "💰 How am I doing?",
+        "🛍️ Should I buy this?",
+        "😬 What's my worst habit?",
+        "💡 Help me save money"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 36.dp), // indent to align with bot bubbles
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Quick questions — tap one to get started:",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 2.dp)
+        )
+
+        suggestions.forEach { suggestion ->
+            SuggestionChip(
+                onClick = { onSuggestionClick(suggestion) },
+                label = {
+                    Text(
+                        text = suggestion,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        Text(
+            text = "Or type your own question below ↓",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp)
+        )
     }
 }
