@@ -55,6 +55,13 @@ fun RegretScoreScreen(
             )
         )
     }
+
+    var purchaseTime by remember{
+        mutableStateOf(receipt?.purchaseTime ?: "")
+    }
+    val timeWasParsed = remember(receipt){
+        receipt?.purchaseTime != null
+    }
     // Fetch the receipt so we have store name + impulse label for the engine
     val receipts by viewModel.getAllReceipts().collectAsState(initial = emptyList())
     val receipt = remember(receipts) {receipts.firstOrNull {it.id == receiptId} }
@@ -127,6 +134,7 @@ fun RegretScoreScreen(
                 )
             }
         }
+
         val sliderColour = when (score) {
             in 1..3 -> Color(0xFF4CAF50)
             in 4..6 -> Color(0xFFFFC107)
@@ -208,6 +216,41 @@ fun RegretScoreScreen(
                 }
             }
         }
+        if (!timeWasParsed){
+            HorizontalDivider()
+
+            Text(
+                "When did you make this purchase?",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium
+            )
+
+            Text(
+                "We couldn't find a time on your receipt — enter it if you remember.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OutlinedTextField(
+                value = purchaseTime,
+                onValueChange = { input ->
+                    // Only allow digits and colon, max 5 chars (HH:MM)
+                    if (input.length <= 5 && input.all { it.isDigit() || it == ':' }) {
+                        purchaseTime = input
+                    }
+                },
+                label = { Text("Purchase time (optional)") },
+                placeholder = { Text("e.g. 14:30") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number
+                ),
+                supportingText = {
+                    Text("Use 24-hour format — e.g. 09:00 or 21:45")
+                }
+            )
+        }
 
         OutlinedTextField(
             value = note,
@@ -222,6 +265,9 @@ fun RegretScoreScreen(
         //Save Button
         Button(
             onClick = {
+                if (!timeWasParsed && purchaseTime.isNotBlank()){
+                    viewModel.updatePurchaseTime(receiptId, purchaseTime)
+                }
                 val moodValue = selectedMood?.value ?:
                 when {
                         score >= 8 -> "regretful"
