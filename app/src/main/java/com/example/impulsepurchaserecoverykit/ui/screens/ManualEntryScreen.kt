@@ -7,6 +7,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.impulsepurchaserecoverykit.ParsedItem
@@ -24,6 +25,7 @@ fun ManualEntryScreen(
     var totalAmount by remember { mutableStateOf("") }
     var itemName by remember { mutableStateOf("") }
     var itemPrice by remember { mutableStateOf("") }
+    var purchaseTime by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -37,7 +39,8 @@ fun ManualEntryScreen(
     ) {
         Text(
             "Manual Entry",
-            style = MaterialTheme.typography.headlineSmall
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
         )
 
         Text(
@@ -63,6 +66,19 @@ fun ManualEntryScreen(
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true
+        )
+        OutlinedTextField(
+            value = purchaseTime,
+            onValueChange = { input ->
+                if (input.length <= 5 && input.all{ c -> c.isDigit() || c == ':'})
+                    purchaseTime = input
+            },
+            label = {Text("Time of purchase (optional)")},
+            placeholder = { Text("e.g. 14:30") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            supportingText = { Text("24-hour format — e.g. 09:00 or 21:45") }
         )
 
         HorizontalDivider()
@@ -100,9 +116,9 @@ fun ManualEntryScreen(
             minLines = 3
         )
 
-        errorMessage?.let {
+        errorMessage?.let { msg ->
             Text(
-                text = it,
+                text = msg,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -132,6 +148,7 @@ fun ManualEntryScreen(
                 val parsedReceipt = ParsedReceipt(
                     storeName = storeName.ifBlank { null },
                     purchaseDate = null,
+                    purchaseTime = purchaseTime.ifBlank { null },
                     items = items,
                     subtotal = total,
                     tax = null,
@@ -154,5 +171,6 @@ fun ManualEntryScreen(
         ) {
             Text("Cancel")
         }
+        Spacer(Modifier.height(16.dp))
     }
 }
