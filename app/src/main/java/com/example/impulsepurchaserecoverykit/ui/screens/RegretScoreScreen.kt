@@ -59,8 +59,9 @@ fun RegretScoreScreen(
     }
 
     // Fetch the receipt so we have store name + impulse label for the engine
-    val receipts by viewModel.getAllReceipts().collectAsState(initial = emptyList())
-    val receipt = remember(receipts) {receipts.firstOrNull {it.id == receiptId} }
+    //val receipts by viewModel.getAllReceipts().collectAsState(initial = emptyList())
+    //val receipt = remember(receipts) {receipts.firstOrNull {it.id == receiptId} }
+    val receipt by viewModel.getReceiptByIdFlow(receiptId).collectAsState(initial = null)
 
     var purchaseTime by remember{
         mutableStateOf(receipt?.purchaseTime ?: "")

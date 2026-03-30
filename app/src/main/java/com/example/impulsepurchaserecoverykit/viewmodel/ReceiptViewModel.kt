@@ -16,6 +16,7 @@ import com.example.impulsepurchaserecoverykit.ui.screens.OcrFailureReason
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class ReceiptViewModel(application: Application) : AndroidViewModel(application) {
@@ -30,7 +31,8 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
 
     lateinit var averageRegret: Flow<Double?>
         private set
-    init{
+
+    init {
         val database = AppDatabase.getDatabase(application)
         repository = ReceiptRepository(database)
 
@@ -41,9 +43,10 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
 
     // ========== Receipt Operations ==========
 
-    fun setOcrFailureReason(reason: OcrFailureReason?){
+    fun setOcrFailureReason(reason: OcrFailureReason?) {
         _ocrFailureReason.value = reason
     }
+
     /**
      * Save a scanned receipt to database
      */
@@ -104,6 +107,7 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     fun getHighRegretReceipts(): Flow<List<ReceiptEntity>> {
         return repository.getHighRegretReceipts(7)
     }
+
     fun getRecentReceipts(limit: Int = 5): Flow<List<ReceiptEntity>> {
         return repository.getRecentReceipts(limit)
     }
@@ -142,18 +146,18 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
         mood: String,
         notes: String?,
         onDone: (() -> Unit)? = null
-    )
-    {
+    ) {
         viewModelScope.launch {
             try {
                 repository.addEmotionCheckIn(receiptId, regretScore, mood, notes)
                 loadStats()
                 onDone?.invoke()
-            }catch (e: Exception){
+            } catch (e: Exception) {
                 android.util.Log.e("ReceiptViewModel", "Error saving emotion check-in", e)
             }
         }
     }
+
     fun getItemReactionsForReceipt(receiptId: Long): Flow<List<ItemReactionEntity>> {
         return repository.getItemReactionsForReceipt(receiptId)
     }
@@ -173,10 +177,14 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
-    fun updatePurchaseTime(receiptId: Long, time: String){
-        viewModelScope.launch{
+
+    fun updatePurchaseTime(receiptId: Long, time: String) {
+        viewModelScope.launch {
             repository.updatePurchaseTime(receiptId, time)
         }
     }
 
+    fun getReceiptByIdFlow(receiptId: Long): Flow<ReceiptEntity?> {
+        return repository.getReceiptByIdFlow(receiptId)
+    }
 }
