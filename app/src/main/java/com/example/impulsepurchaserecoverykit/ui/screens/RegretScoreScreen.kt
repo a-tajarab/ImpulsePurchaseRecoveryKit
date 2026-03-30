@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,15 +58,16 @@ fun RegretScoreScreen(
         )
     }
 
+    // Fetch the receipt so we have store name + impulse label for the engine
+    val receipts by viewModel.getAllReceipts().collectAsState(initial = emptyList())
+    val receipt = remember(receipts) {receipts.firstOrNull {it.id == receiptId} }
+
     var purchaseTime by remember{
         mutableStateOf(receipt?.purchaseTime ?: "")
     }
     val timeWasParsed = remember(receipt){
         receipt?.purchaseTime != null
     }
-    // Fetch the receipt so we have store name + impulse label for the engine
-    val receipts by viewModel.getAllReceipts().collectAsState(initial = emptyList())
-    val receipt = remember(receipts) {receipts.firstOrNull {it.id == receiptId} }
 
     val score = sliderValue.roundToInt().coerceIn(1, 10)
 
