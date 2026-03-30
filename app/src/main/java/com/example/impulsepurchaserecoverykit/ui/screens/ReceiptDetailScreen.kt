@@ -74,6 +74,7 @@ fun ReceiptDetailScreen(
         // ===== Facts Section (no judgement) =====
         Text(receipt.storeName ?: "Unknown store", style = MaterialTheme.typography.headlineSmall)
         Text("Date: ${receipt.purchaseDate ?: "—"}")
+        Text("Time: ${receipt.purchaseTime ?: "Not recorded"}")
         Text("Subtotal: £${receipt.subtotal ?: "—"}")
         Text("Tax: £${receipt.tax ?: "—"}")
         Text("Total: £${receipt.totalAmount ?: "—"}")
