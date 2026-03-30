@@ -173,5 +173,10 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+    fun updatePurchaseTime(receiptId: Long, time: String){
+        viewModelScope.launch{
+            repository.updatePurchaseTime(receiptId, time)
+        }
+    }
 
 }
