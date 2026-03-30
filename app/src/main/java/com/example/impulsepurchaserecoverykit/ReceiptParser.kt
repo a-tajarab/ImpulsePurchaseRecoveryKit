@@ -360,19 +360,23 @@ class ReceiptParser {
     private fun extractDate(text: String): String? {
         // Common date patterns
         val patterns = listOf(
-            // DD/MM/YYYY or MM/DD/YYYY with optional spaces around separators
-            "\\d{1,2}\\s*[/-]\\s*\\d{1,2}\\s*[/-]\\s*\\d{2,4}",
-            // YYYY-MM-DD with optional spaces
-            "\\d{4}\\s*[/-]\\s*\\d{1,2}\\s*[/-]\\s*\\d{1,2}",
+            // Full date with time — extract just the date part
+            Regex("""(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})\s+\d{1,2}:\d{2}"""),
+            // Standard DD/MM/YYYY
+            Regex("""\d{1,2}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{2,4}"""),
+            // YYYY-MM-DD
+            Regex("""\d{4}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{1,2}"""),
             // Month DD, YYYY
-            "[A-Za-z]{3,9}\\s+\\d{1,2},?\\s+\\d{4}"
+            Regex("""[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}""")
         )
 
         for (pattern in patterns) {
-            val regex = Pattern.compile(pattern)
-            val matcher = regex.matcher(text)
-            if (matcher.find()) {
-                val date = matcher.group()
+            val match = pattern.find(text) ?: continue
+            // Use group 1 if available (date without time), otherwise full match
+            val date = (match.groups[1]?.value ?: match.value).trim()
+            // Validate it looks reasonable — must have 3 parts
+            val parts = date.replace(" ", "").split("/", "-")
+            if (parts.size >= 3) {
                 Log.d("PARSER", "Found date: $date")
                 return date
             }
