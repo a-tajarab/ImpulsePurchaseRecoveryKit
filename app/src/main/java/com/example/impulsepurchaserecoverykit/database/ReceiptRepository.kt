@@ -35,6 +35,7 @@ class ReceiptRepository(private val database: AppDatabase) {
         val receiptEntity = ReceiptEntity(
             storeName = parsedReceipt.storeName,
             purchaseDate = parsedReceipt.purchaseDate,
+            purchaseTime = parsedReceipt.purchaseTime,
             totalAmount = parsedReceipt.total,
             subtotal = parsedReceipt.subtotal,
             tax = parsedReceipt.tax,
