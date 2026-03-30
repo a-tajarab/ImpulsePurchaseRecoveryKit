@@ -21,7 +21,7 @@ import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
 import com.example.impulsepurchaserecoverykit.ui.AppRoot
 import com.example.impulsepurchaserecoverykit.ui.screens.OcrFailureReason
 import com.example.impulsepurchaserecoverykit.ui.screens.OcrFailureScreen
-import com.google.firebase.encoders.json.BuildConfig
+import com.example.impulsepurchaserecoverykit.BuildConfig
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {

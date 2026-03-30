@@ -36,8 +36,8 @@ interface ReceiptDao {
     @Query("SELECT * FROM receipts ORDER BY createdAt DESC LIMIT :limit")
     fun getRecentReceipts(limit: Int): Flow<List<ReceiptEntity>>
 
-    //@Query("SELECT * FROM receipts WHERE id = :receiptId LIMIT 1")
-    //fun getReceiptByIdFlow(receiptId: Long): Flow<ReceiptEntity?>
+    @Query("SELECT * FROM receipts WHERE id = :receiptId LIMIT 1")
+    fun getReceiptByIdFlow(receiptId: Long): Flow<ReceiptEntity?>
 
     @Query("SELECT SUM(totalAmount) FROM receipts")
     fun getTotalSpend(): Flow<Double?>

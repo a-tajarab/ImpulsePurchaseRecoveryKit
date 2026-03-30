@@ -79,8 +79,8 @@ class ReceiptRepository(private val database: AppDatabase) {
     /**
      * Get a specific receipt by ID
      */
-    suspend fun getReceiptById(receiptId: Long): ReceiptEntity? {
-        return receiptDao.getReceiptById(receiptId)
+    fun getReceiptByIdFlow(receiptId: Long): Flow<ReceiptEntity?> {
+        return receiptDao.getReceiptByIdFlow(receiptId)
     }
 
     /**

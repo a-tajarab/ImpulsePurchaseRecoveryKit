@@ -28,13 +28,27 @@ fun ReceiptDetailScreen(
     onSetRegret: () -> Unit,
     onBack: () -> Unit
 ) {
-    val receipts by viewModel.getAllReceipts().collectAsState(initial = emptyList())
-    val receipt = receipts.firstOrNull { it.id == receiptId }
+    //val receipts by viewModel.getAllReceipts().collectAsState(initial = emptyList())
+    //val receipt = receipts.firstOrNull { it.id == receiptId }
+    val receipt by viewModel.getReceiptByIdFlow(receiptId).collectAsState(initial = null)
 
     val items by viewModel.getItemsForReceipt(receiptId).collectAsState(initial = emptyList())
 
     // Bottom sheet state
     var showAnalysisSheet by remember { mutableStateOf(false) }
+
+    if(receipt == null){
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ){
+            CircularProgressIndicator()
+        }
+        return
+    }
+    val r = receipt!!
 
     if (showAnalysisSheet) {
         ModalBottomSheet(
@@ -44,9 +58,9 @@ fun ReceiptDetailScreen(
             AnalysisSheetContent(
                 receiptId = receiptId,
                 viewModel = viewModel,
-                receiptImpulseLabel = receipt?.impulseLabel,
-                receiptImpulseScore = receipt?.impulseScore,
-                impulseReasonsJson = receipt?.impulseReasonsJson,
+                receiptImpulseLabel = r.impulseLabel,
+                receiptImpulseScore = r.impulseScore,
+                impulseReasonsJson = r.impulseReasonsJson,
                 items = items,
                 onClose = { showAnalysisSheet = false }
             )
@@ -66,20 +80,15 @@ fun ReceiptDetailScreen(
             Button(onClick = onSetRegret) { Text("Rate Regret") }
         }
 
-        if (receipt == null) {
-            Text("Receipt not found.")
-            return@Column
-        }
-
         // ===== Facts Section (no judgement) =====
-        Text(receipt.storeName ?: "Unknown store", style = MaterialTheme.typography.headlineSmall)
-        Text("Date: ${receipt.purchaseDate ?: "—"}")
-        Text("Time: ${receipt.purchaseTime ?: "Not recorded"}")
-        Text("Subtotal: £${receipt.subtotal ?: "—"}")
-        Text("Tax: £${receipt.tax ?: "—"}")
-        Text("Total: £${receipt.totalAmount ?: "—"}")
-        Text("Regret: ${receipt.regretScore?.toString() ?: "Not rated"}")
-        Text("Your sentiment: ${receipt.userSentimentLabel ?: "—"} (${receipt.userSentimentScore ?: "—"}/100)")
+        Text(r.storeName ?: "Unknown store", style = MaterialTheme.typography.headlineSmall)
+        Text("Date: ${r.purchaseDate ?: "—"}")
+        Text("Time: ${r.purchaseTime ?: "Not recorded"}")
+        Text("Subtotal: £${r.subtotal ?: "—"}")
+        Text("Tax: £${r.tax ?: "—"}")
+        Text("Total: £${r.totalAmount ?: "—"}")
+        Text("Regret: ${r.regretScore?.toString() ?: "Not rated"}")
+        Text("Your sentiment: ${r.userSentimentLabel ?: "—"} (${r.userSentimentScore ?: "—"}/100)")
 
         Divider()
 
