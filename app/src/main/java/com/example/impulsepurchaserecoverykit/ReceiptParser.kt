@@ -494,14 +494,28 @@ class ReceiptParser {
     }
 
     private fun extractTime(text: String): String?{
-        val timeRegex = Regex("""\b([01]?\d|2[0-3])\s*:\s*([0-5]\d)\b""")
-        val match = timeRegex.find(text) ?: return null
-        val hour = match.groupValues[1].toIntOrNull() ?: return null
-        val minute = match.groupValues[2]
+        val lines = text.lines()
 
-        // Filter out dates mistaken as times (e.g. "12:2025")
-        if (minute.toIntOrNull() ?: 0 > 59) return null
+        for (line in lines){
+            // Skip lines that look like they're purely dates
+            if (line.trim().matches(Regex("""^\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}$"""))) continue
 
-        return "${hour.toString().padStart(2, '0')}:$minute"
+            // Look for HH:MM pattern
+            val match = Regex("""\b([01]?\d|2[0-3]):([0-5]\d)\b""").find(line) ?: continue
+
+            val hour = match.groupValues[1].toIntOrNull() ?: continue
+            val minute = match.groupValues[2].toIntOrNull() ?: continue
+
+            // Sanity check — valid time range
+            if (hour > 23 || minute > 59) continue
+
+            // Skip if this looks like a year (e.g. 20:25 in "2025")
+            val fullMatch = match.value
+            val before = line.substring(0, match.range.first)
+            if (before.trimEnd().endsWith("/")) continue
+
+            return "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+        }
+        return null
     }
 }
