@@ -186,7 +186,7 @@ fun ReceiptListScreen(
                                 }
                             }
                             Text(
-                                "📅 ${r.purchaseDate ?: "Date unknown"}",
+                                "📅 ${r.purchaseDate ?: "Date unknown"}${r.purchaseTime?.let { " at $it" } ?: ""}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
