@@ -14,6 +14,7 @@ class ReceiptParser {
 
         val storeName = extractStoreName(rawText)
         val date = extractDate(rawText)
+        val time = extractTime(rawText)
         val items = extractItems(rawText, storeName)
         val total = extractTotal(rawText)
         val subtotal = extractSubtotal(rawText)
@@ -22,6 +23,7 @@ class ReceiptParser {
         val receipt = ParsedReceipt(
             storeName = storeName,
             purchaseDate = date,
+            purchaseTime = time,
             items = items,
             subtotal = subtotal,
             tax = tax,
@@ -491,6 +493,15 @@ class ReceiptParser {
         return badPhrases.any { it in l }
     }
 
+    private fun extractTime(text: String): String?{
+        val timeRegex = Regex("""\b([01]?\d|2[0-3])\s*:\s*([0-5]\d)\b""")
+        val match = timeRegex.find(text) ?: return null
+        val hour = match.groupValues[1].toIntOrNull() ?: return null
+        val minute = match.groupValues[2]
 
+        // Filter out dates mistaken as times (e.g. "12:2025")
+        if (minute.toIntOrNull() ?: 0 > 59) return null
 
+        return "${hour.toString().padStart(2, '0')}:$minute"
+    }
 }
