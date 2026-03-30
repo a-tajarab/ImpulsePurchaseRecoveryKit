@@ -80,4 +80,7 @@ interface ReceiptDao {
     @Query("SELECT AVG(regretScore) FROM receipts WHERE regretScore IS NOT NULL")
     fun getAverageRegretScoreFlow(): Flow<Double?>
 
+    @Query("UPDATE receipts SET purchaseTime = :time WHERE id = :receiptId")
+    suspend fun updatePurchaseTime(receiptId: Long, time: String)
+
 }
