@@ -10,6 +10,7 @@ data class ReceiptEntity(
 
     val storeName: String?,
     val purchaseDate: String?,
+    val purchaseTime: String? = null,
     val totalAmount: Double?,
     val subtotal: Double?,
     val tax: Double?,
