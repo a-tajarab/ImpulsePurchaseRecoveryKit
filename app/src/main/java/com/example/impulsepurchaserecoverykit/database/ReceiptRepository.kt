@@ -176,6 +176,10 @@ class ReceiptRepository(private val database: AppDatabase) {
         return receiptDao.getWeeklyAverageRegret()
     }
 
+    suspend fun updatePurchaseTime(receiptId: Long, time: String){
+        receiptDao.updatePurchaseTime(receiptId, time)
+    }
+
 
     suspend fun addEmotionCheckIn(
         receiptId: Long,
