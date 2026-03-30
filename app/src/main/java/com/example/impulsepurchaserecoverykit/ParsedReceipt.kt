@@ -14,6 +14,7 @@ data class ParsedItem(
 data class ParsedReceipt(
     val storeName: String?,
     val purchaseDate: String?,
+    val purchaseTime: String?,
     val items: List<ParsedItem>,
     val subtotal: Double?,
     val tax: Double?,
@@ -34,6 +35,7 @@ data class ParsedReceipt(
         return """
             Store: ${storeName ?: "Unknown"}
             Date: ${purchaseDate ?: "Unknown"}
+            Time: ${purchaseTime ?: "Unknown"}
             Items: ${items.size}
             Total: $${total ?: "Unknown"}
         """.trimIndent()
