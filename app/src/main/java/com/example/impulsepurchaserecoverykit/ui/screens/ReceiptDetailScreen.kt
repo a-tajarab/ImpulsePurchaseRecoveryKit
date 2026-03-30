@@ -88,7 +88,13 @@ fun ReceiptDetailScreen(
         Text("Tax: £${r.tax ?: "—"}")
         Text("Total: £${r.totalAmount ?: "—"}")
         Text("Regret: ${r.regretScore?.toString() ?: "Not rated"}")
-        Text("Your sentiment: ${r.userSentimentLabel ?: "—"} (${r.userSentimentScore ?: "—"}/100)")
+
+        val sentimentText = if (r.userSentimentLabel != null){
+            "Item sentiment: ${r.userSentimentLabel} (${r.userSentimentScore}/100)"
+        } else {
+            "Item sentiment: Rate items in Analysis to see this"
+        }
+        Text(sentimentText, style = MaterialTheme.typography.bodyMedium)
 
         Divider()
 

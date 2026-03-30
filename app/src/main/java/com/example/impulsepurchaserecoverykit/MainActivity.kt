@@ -41,9 +41,6 @@ class MainActivity : ComponentActivity() {
                         onScanReceiptPicked = { uri -> processReceipt(uri) }
 
                     )
-                    if (BuildConfig.DEBUG) {
-                        com.example.impulsepurchaserecoverykit.debug.ReceiptDebugFloatingButton()
-                    }
                 }
             }
         }
