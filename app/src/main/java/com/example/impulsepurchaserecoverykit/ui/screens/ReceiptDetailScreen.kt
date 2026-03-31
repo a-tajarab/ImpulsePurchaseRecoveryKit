@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SentimentDissatisfied
 import androidx.compose.material.icons.filled.SentimentNeutral
 import androidx.compose.material.icons.filled.SentimentSatisfied
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -36,6 +37,7 @@ fun ReceiptDetailScreen(
 
     // Bottom sheet state
     var showAnalysisSheet by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember {mutableStateOf(false)}
 
     if(receipt == null){
         Box(
@@ -49,6 +51,34 @@ fun ReceiptDetailScreen(
         return
     }
     val r = receipt!!
+
+    if (showDeleteDialog){
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete receipt?") },
+            text = { Text("This will permanently delete this receipt and all its data. This cannot be undone.")},
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteReceipt(r)
+                        showDeleteDialog = false
+                        onBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
 
     if (showAnalysisSheet) {
         ModalBottomSheet(
@@ -75,9 +105,25 @@ fun ReceiptDetailScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = onBack) { Text("Back") }
-            Button(onClick = onSetRegret) { Text("Rate Regret") }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ){
+            OutlinedButton(onClick = onBack) { Text("Back")}
+            Button(onClick = onSetRegret, modifier = Modifier.weight(1f)) {
+                Text("Rate Regret")
+            }
+            OutlinedButton(
+                onClick = { showDeleteDialog = true },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.Delete,
+                    contentDescription = "Delete"
+                )
+            }
         }
 
         // ===== Facts Section (no judgement) =====
