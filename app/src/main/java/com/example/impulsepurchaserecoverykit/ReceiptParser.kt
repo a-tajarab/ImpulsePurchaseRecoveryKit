@@ -3,15 +3,10 @@ package com.example.impulsepurchaserecoverykit
 import android.util.Log
 import java.util.regex.Pattern
 
-
 class ReceiptParser {
-    /**
-     * Main parsing function - takes raw OCR text and returns structured data
-     */
+
     fun parseReceipt(rawText: String): ParsedReceipt {
         Log.d("PARSER", "Starting to parse receipt...")
-        Log.d("PARSER_RAW", "Raw text length: ${rawText.length} characters")
-
         val storeName = extractStoreName(rawText)
         val date = extractDate(rawText)
         val time = extractTime(rawText)
@@ -30,160 +25,301 @@ class ReceiptParser {
             total = total,
             rawText = rawText
         )
-
         Log.d("PARSER_RESULT", "Parsed receipt:\n${receipt.getSummary()}")
         return receipt
     }
 
-    /**
-     * Extract store name
-     */
+    // ─────────────────────────────────────────────────────────────
+    // STORE NAME
+    // ─────────────────────────────────────────────────────────────
+
     private fun extractStoreName(text: String): String? {
-        val lines = text.lines().map { it.trim()}.filter { it.isNotBlank() }
+        val lines = text.lines().map { it.trim() }.filter { it.isNotBlank() }
 
-        // Common store names to look for
-        val storePatterns = listOf(
-            "walmart", "target", "costco", "kroger", "safeway",
-            "whole foods", "trader joe", "albertsons", "publix",
-            "cvs", "walgreens", "rite aid", "dollar", "aldi",
-            "tesco", "sainsbury", "asda", "morrisons", "m&s",
-            "marks", "marks and spencer", "boots", "primark",
-            "jd sports", "shein"
-        )
-
-        // Check first 5 lines for store names
-        for (line in lines.take(20)) {
+        // 1) Search ALL lines for a known store name
+        for (line in lines) {
             val lower = line.lowercase()
-            if (storePatterns.any { it in lower}){
-                Log.d("PARSER", "Found store name: $line")
-                return line.trim()
+            val match = knownStores.firstOrNull { it in lower }
+            if (match != null && !looksLikeAddress(line) && !isNoiseLine(line)) {
+                Log.d("PARSER", "Found known store: $line")
+                return cleanStoreName(line.trim())
             }
         }
 
-        // If no known store found, return first non-empty line
-        val firstLine = lines.firstOrNull{!it.contains("£") && !it.contains("$")}?.trim()
-        Log.d("PARSER", "Using first line as store name: $firstLine")
-        return firstLine
-    }
-
-    /**
-     * Extract individual items and their prices
-     */
-    private fun extractItems(text: String, storeName: String?): List<ParsedItem> {
-        val items = mutableListOf<ParsedItem>()
-        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-
-        val lowerStore = storeName?.lowercase()?.trim()
-        // A) Real receipts: require £/$
-        val itemWithCurrency = Pattern.compile(
-            """(.{2,}?)\s+(?:£|\$)\s*([0-9]+(?:[.,][0-9]{1,2})?)\s*$""",
-            Pattern.CASE_INSENSITIVE
+        // 2) Fallback — first short line that doesn't look like noise/address/product
+        val productWords = listOf(
+            "jacket", "hoodie", "jeans", "shirt", "shoes", "trainers",
+            "dress", "top", "bag", "pack", "set", "shorts", "coat"
+        )
+        val skipWords = listOf(
+            "thank you", "order", "invoice", "receipt", "welcome",
+            "hello", "dear", "shipping", "delivery", "total", "tax"
         )
 
-        // 1) Inline pass (only if OCR actually put item + price on same line)
-        for (line in lines) {
+        val fallback = lines.firstOrNull { line ->
             val lower = line.lowercase()
-            if (isNoiseLine(line)) continue
-            if (lowerStore != null && lower == lowerStore) continue
+            line.length in 2..35 &&
+                    !line.contains("£") && !line.contains("$") &&
+                    !looksLikeAddress(line) &&
+                    !looksLikePhoneOrRef(line) &&
+                    !looksLikeDateOrTime(line) &&
+                    !isNoiseLine(line) &&
+                    skipWords.none { it in lower } &&
+                    productWords.none { it in lower } &&
+                    line.any { it.isLetter() } &&
+                    !looksLikePersonName(line)
+        }?.trim()
 
-            val m = itemWithCurrency.matcher(line)
-            if (!m.find()) continue
+        Log.d("PARSER", "Fallback store name: $fallback")
+        return fallback?.let { cleanStoreName(it) }
+    }
 
-            val rawName = m.group(1)?.trim().orEmpty()
-            val rawPrice = m.group(2)?.trim().orEmpty()
+    private fun cleanStoreName(name: String): String {
+        var cleaned = name.lowercase().trim()
+        cleaned = cleaned.removePrefix("www.")
+        listOf(".co.uk", ".com", ".net", ".org", ".io", ".co", ".uk", ".store", ".shop")
+            .forEach { suffix ->
+                if (cleaned.endsWith(suffix)) {
+                    cleaned = cleaned.removeSuffix(suffix)
+                    return@forEach
+                }
+            }
+        cleaned = cleaned.replace("/", "")
+            .replace(Regex("""^[.\s]+|[.\s]+$"""), "").trim()
+        return cleaned.split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+    }
 
-            val price = parseMoneyNumber(rawPrice) ?: continue
-            if (price !in 0.01..9999.99) continue
+    // ─────────────────────────────────────────────────────────────
+    // ITEMS — detects format automatically
+    // ─────────────────────────────────────────────────────────────
 
-            val name = cleanItemName(rawName)
-            if (!name.any { it.isLetter() }) continue
-            if (looksLikePhoneOrRef(name)) continue
-
-            items.add(ParsedItem(name, price, 1, categorizeItem(name)))
-            Log.d("PARSER", "Found item (inline): $name -> £$price")
-        }
-
-        if (items.isNotEmpty()) {
-            Log.d("PARSER", "Found ${items.size} items total (inline)")
-            return items
-        }
-
-        // 2) Block pairing fallback: names list + money list (common for real receipts)
-        Log.d("PARSER", "No inline items found. Trying block pairing (names + money)...")
+    private fun extractItems(text: String, storeName: String?): List<ParsedItem> {
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
         val total = extractTotal(text)
         val subtotal = extractSubtotal(text)
         val tax = extractTax(text)
-
-        fun approxEq(a: Double?, b: Double?, eps: Double = 0.01): Boolean {
-            if (a == null || b == null) return false
-            return kotlin.math.abs(a - b) <= eps
+        // Detect format: does the text have prices on the same lines as item names?
+        val inlineCount = lines.count { line ->
+            val hasName = line.length > 3 && line.any { it.isLetter() }
+            val hasPrice = moneyRegex.containsMatchIn(line) ||
+                    Regex("""[A-Za-z].{2,30}\s{2,}[0-9]+\.[0-9]{2}$""").containsMatchIn(line)
+            hasName && hasPrice && !isNoiseLine(line)
         }
 
-        val allMoney = mutableListOf<Double>()
-        for (line in lines){
-            val money = extractMoneyFromLine(line)
-            if (money != null && money in 0.0..9999.99){
-                allMoney.add(money)
-            }
+        val totalMoneyLines = lines.count { moneyRegex.containsMatchIn(it) }
+        val isInlineFormat = inlineCount >= (totalMoneyLines / 2)
+
+        Log.d("PARSER", "Format detect — inline=$inlineCount, moneyLines=$totalMoneyLines, isInline=$isInlineFormat")
+
+        return if (isInlineFormat) {
+            extractItemsInline(lines, storeName)
+        } else {
+            extractItemsSplitColumn(lines, storeName, text, total, subtotal, tax)
         }
+    }
 
+    // Format 1 & 2: item and price on the same line
+    private fun extractItemsInline(
+        lines: List<String>,
+        storeName: String?
+    ): List<ParsedItem> {
+        val items = mutableListOf<ParsedItem>()
+        val lowerStore = storeName?.lowercase()?.trim()
 
-        val moneyCandidates = allMoney.filter{ v ->
-            if (v==0.0) return@filter false
+        val patternWithPound = Regex("""^(.{2,40}?)\s{1,}[£$]\s*([0-9OlI]+[.,][0-9]{2})\s*$""")
+        val patternNoSymbol = Regex("""^([A-Za-z][A-Za-z ,&\-']{1,38}?)\s{2,}([0-9]+\.[0-9]{2})\s*$""")
 
-            if (approxEq(v, total)|| approxEq(v, subtotal)|| approxEq(v, tax)) return@filter false
-            true
-        }.toMutableList()
+        val summaryStarts = listOf("total", "subtotal", "sub total", "tax", "vat",
+            "paid", "visa", "mastercard", "amex", "change", "balance")
 
-        val startIndex = lines.indexOfFirst { looksLikeDateOrTime(it) }.let { if (it == -1) 0 else it + 1 }
-
-
-        val nameCandidates = mutableListOf<String>()
-        for (i in startIndex until lines.size) {
-            val line = lines[i]
-            if (isNoiseLine(line)) continue
-
+        for (line in lines) {
             val lower = line.lowercase()
-
-            if (isNonItemHeaderLine(line)) continue
-
-            // skip store name
+            if (isNoiseLine(line)) continue
             if (lowerStore != null && lower == lowerStore) continue
-
-            // skip summary labels
-            if (lower.contains("subtotal") || lower.contains("sub total")) continue
-            if (lower.contains("tax") || lower.contains("vat")) continue
-            if (lower == "total" || lower.startsWith("total ")) continue
-
-            // skip stuff that isn't an item
-            if (looksLikeDateOrTime(line)) continue
             if (looksLikeAddress(line)) continue
             if (looksLikePhoneOrRef(line)) continue
+            if (summaryStarts.any { lower.startsWith(it) }) continue
 
-            // skip pure money lines
-            if (extractMoneyFromLine(line) != null) continue
-
-            val cleaned = cleanItemName(line)
-            if (!cleaned.any { it.isLetter() }) continue
-
-            // skip “k k k …” junk
-            if (cleaned.lowercase().matches(Regex("""^[k\s]+$"""))) continue
-
-            nameCandidates.add(cleaned)
+            val matchA = patternWithPound.find(line)
+            if (matchA != null) {
+                val name = cleanItemName(matchA.groupValues[1])
+                val price = parseMoneyNumber(matchA.groupValues[2])
+                if (isValidItem(name, price)) {
+                    items.add(ParsedItem(name, price!!, 1, categorizeItem(name)))
+                    Log.d("PARSER", "Inline item: $name -> £$price")
+                }
+                continue
             }
 
-
-        val pairCount = minOf(nameCandidates.size, moneyCandidates.size)
-        for (i in 0 until pairCount) {
-            val name = nameCandidates[i]
-            val price = moneyCandidates[i]
-            items.add(ParsedItem(name, price, 1, categorizeItem(name)))
-            Log.d("PARSER", "Paired item: $name -> £$price")
+            val matchB = patternNoSymbol.find(line)
+            if (matchB != null) {
+                val name = cleanItemName(matchB.groupValues[1])
+                val price = parseMoneyNumber(matchB.groupValues[2])
+                if (isValidItem(name, price)) {
+                    items.add(ParsedItem(name, price!!, 1, categorizeItem(name)))
+                    Log.d("PARSER", "Inline item (no symbol): $name -> £$price")
+                }
+            }
         }
-        Log.d("PARSER", "Found ${items.size} items total (paired)")
+
+        Log.d("PARSER", "Inline found ${items.size} items")
         return items
     }
+
+    // Format 3: names block then prices block (split column online receipts)
+    private fun extractItemsSplitColumn(
+        lines: List<String>,
+        storeName: String?,
+        fullText: String,
+        precomputedTotal: Double?,
+        precomputedSubtotal: Double?,
+        precomputedTax: Double?
+    ): List<ParsedItem> {
+        val items = mutableListOf<ParsedItem>()
+        val lowerStore = storeName?.lowercase()?.trim()
+
+        val total = precomputedTotal
+        val subtotal = precomputedSubtotal
+        val tax = precomputedTax
+
+        fun approxEq(a: Double?, b: Double?): Boolean {
+            if (a == null || b == null) return false
+            return kotlin.math.abs(a - b) <= 0.01
+        }
+
+        // Collect prices — exclude total/subtotal/tax
+        val prices = mutableListOf<Double>()
+        val seenPrices = mutableSetOf<Double>()
+
+        for (line in lines) {
+            val price = extractMoneyFromLine(line) ?: continue
+            if (price !in 0.01..9999.99) continue
+            if (approxEq(price, total)) continue
+            if (approxEq(price, subtotal)) continue
+            if (approxEq(price, tax)) continue
+
+            val lower = line.lowercase()
+            if (lower.contains("win") || lower.contains("chance") ||
+                lower.contains("prize") || lower.contains("gift") ||
+                lower.contains("survey") || lower.contains("feedback")) continue
+            if (isNoiseLine(line)) continue
+
+            prices.add(price)
+        }
+
+
+        // Hard skip for name collection
+        val hardSkip = listOf(
+            "thank you", "order date", "order number", "order ref", "order no",
+            "order confirmation", "order summary",
+            "shipping to", "shipping", "delivery", "dispatch",
+            "total", "subtotal", "sub total", "tax", "vat",
+            "paid", "payment", "change", "balance",
+            "visa", "mastercard", "amex", "debit", "credit",
+            "est.", "since 18", "since 19", "since 20",
+            "tell us", "visit us", "www.", "http",
+            "enter for", "win a", "win £", "gift card",
+            "cashier", "operator", "terminal", "auth",
+            "nectar", "clubcard", "points", "savings",
+            "return", "refund", "exchange",
+            "sample", "example", "test"  // test receipt addresses
+        )
+
+        // Collect item name candidates
+        val nameCandidates = mutableListOf<String>()
+
+        for (line in lines) {
+            val lower = line.lowercase()
+
+            // Skip hard-skip phrases
+            if (hardSkip.any { it in lower }) continue
+
+            // Skip noise
+            if (isNoiseLine(line)) continue
+
+            // Skip addresses (enhanced)
+            if (looksLikeAddress(line)) continue
+
+            // Skip phone/ref
+            if (looksLikePhoneOrRef(line)) continue
+
+            // Skip date/time
+            if (looksLikeDateOrTime(line)) continue
+
+            // Skip store name line
+            if (lowerStore != null && lower.contains(lowerStore)) continue
+
+            // Skip lines containing money
+            if (extractMoneyFromLine(line) != null) continue
+
+            // Skip pure number lines
+            if (line.replace(" ", "").all { it.isDigit() }) continue
+
+            val cleaned = cleanItemName(line)
+            if (cleaned.length < 2) continue
+            if (!cleaned.any { it.isLetter() }) continue
+            if (categorizeItem(cleaned) == "stopKeywords") continue
+
+            // Skip lines that are after "Shipping to:" — likely address
+            val idx = lines.indexOf(line)
+            val beforeLines = lines.take(idx).map { it.lowercase() }
+            val afterShippingTo = beforeLines.any {
+                it.startsWith("shipping to") || it == "shipping to:"
+            }
+            if (afterShippingTo) {
+                // Only keep if it looks like a real product
+                val isProduct = productKeywords.any { it in lower }
+                if (!isProduct) continue
+            }
+
+            nameCandidates.add(cleaned)
+            Log.d("PARSER", "Name candidate: $cleaned")
+        }
+
+        Log.d("PARSER", "Split column — names: ${nameCandidates.size}, prices: ${prices.size}")
+
+        val pairCount = minOf(nameCandidates.size, prices.size)
+        for (i in 0 until pairCount) {
+            val name = nameCandidates[i]
+            val price = prices[i]
+            items.add(ParsedItem(name, price, 1, categorizeItem(name)))
+            Log.d("PARSER", "Split paired: $name -> £$price")
+        }
+
+        return items
+    }
+
+    private val productKeywords = listOf(
+        "hoodie", "shirt", "t-shirt", "tee", "blouse", "jumper", "sweater",
+        "jacket", "coat", "parka", "blazer", "cardigan",
+        "jeans", "trousers", "pants", "shorts", "leggings", "skirt", "dress",
+        "shoes", "trainers", "sneakers", "boots", "heels", "sandals",
+        "hat", "cap", "scarf", "gloves", "belt", "sunglasses",
+        "bag", "backpack", "wallet", "purse",
+        "milk", "bread", "eggs", "butter", "cheese", "yogurt",
+        "apple", "banana", "tomato", "potato", "chicken", "beef",
+        "coffee", "tea", "juice", "water", "cereal", "pasta", "rice",
+        "shampoo", "soap", "detergent", "batteries", "mop",
+        "shelf", "lamp", "rug", "plant", "pot", "light",
+        "sandwich", "salad", "croissant", "muffin", "donut",
+        "pack", "set", "kit", "bundle"
+    )
+
+    private fun isValidItem(name: String, price: Double?): Boolean {
+        if (price == null || price !in 0.01..9999.99) return false
+        if (!name.any { it.isLetter() }) return false
+        if (looksLikePhoneOrRef(name)) return false
+        val lower = name.lowercase()
+        if (lower.contains("total") || lower.contains("subtotal")) return false
+        if (categorizeItem(name) == "stopKeywords") return false
+        return true
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // HELPERS
+    // ─────────────────────────────────────────────────────────────
+
     private fun cleanItemName(name: String): String =
         name.replace(Regex("[*@#]"), "")
             .replace(Regex("\\s+"), " ")
@@ -191,15 +327,15 @@ class ReceiptParser {
             .replaceFirstChar { it.uppercase() }
 
     private fun parseMoneyNumber(s: String): Double? {
-        // Fix OCR mistakes: l / I used instead of 1
         val fixed = s
             .replace("l", "1", ignoreCase = false)
             .replace("I", "1", ignoreCase = false)
+            .replace("O", "0", ignoreCase = false)
             .replace(",", ".")
         return fixed.toDoubleOrNull()
     }
 
-    private val moneyRegex = Regex("""(?:£|\$)\s*([0-9lI]+(?:[.,][0-9]{2})?)""")
+    private val moneyRegex = Regex("""(?:£|\$)\s*([0-9lIOo]+(?:[.,][0-9]{2})?)(?![0-9!])""")
 
     private fun extractMoneyFromLine(line: String): Double? {
         val m = moneyRegex.find(line) ?: return null
@@ -208,20 +344,25 @@ class ReceiptParser {
 
     private fun looksLikePhoneOrRef(line: String): Boolean {
         val l = line.lowercase().trim()
-        if (l.startsWith("tel") || l.startsWith("phone")) return true
-        if (l.contains("tel:")) return true
-        if (l.matches(Regex("""^0\d{2,}.*"""))) return true // UK numbers often start 0...
-        // long numeric reference / barcode-like
+        if (l.startsWith("tel") || l.startsWith("phone") || l.contains("tel:")) return true
+        if (l.matches(Regex("""^0\d{2,}.*"""))) return true
         if (l.replace(" ", "").matches(Regex("""^\d{8,}$"""))) return true
         return false
     }
 
     private fun looksLikeAddress(line: String): Boolean {
         val l = line.lowercase()
-        if (l.contains("road") || l.contains("street") || l.contains("lane")) return true
-        if (l.contains("london")) return true
-        // UK postcode-ish quick check
-        if (l.matches(Regex(""".*\b[A-Z]{1,2}\d[A-Z0-9]?\s*\d[A-Z]{2}\b.*""", RegexOption.IGNORE_CASE))) return true
+        if (l.contains("road") || l.contains("street") || l.contains("lane") ||
+            l.contains("avenue") || l.contains("close") || l.contains("drive") ||
+            l.contains("place") || l.contains("court")) return true
+        if (l.contains("london") || l.contains("manchester") || l.contains("birmingham") ||
+            l.contains("city") || l.contains("example city")) return true
+        if (l.contains("sample") || l.contains("example")) return true
+        // Has a number followed by a comma — likely "123 Sample St,"
+        if (Regex("""^\d+\s+\S+.*,""").containsMatchIn(l)) return true
+        // UK postcode
+        if (Regex("""\b[A-Z]{1,2}\d[A-Z0-9]?\s*\d[A-Z]{2}\b""",
+                RegexOption.IGNORE_CASE).containsMatchIn(l)) return true
         return false
     }
 
@@ -232,294 +373,214 @@ class ReceiptParser {
         return false
     }
 
-    private fun isNoiseLine(line: String): Boolean {
-        val l = line.lowercase().trim()
-        if (l.contains("www.") || l.contains("http")) return true
-        if (l.contains("tell us how") || l.contains("enter for a chance")) return true
-        if (l.contains("gift card") || l.startsWith("win ")) return true
-        if (l.contains("nectar") || l.contains("points")) return true
-
-        // payment / card
-        if (l.contains("visa") || l.contains("mastercard") || l.contains("debit") || l.contains("credit")) return true
-        if (l.contains("auth") || l.contains("terminal") || l.contains("operator")) return true
-        if (l.contains("****") || l.matches(Regex("""^\*{2,}\d+.*$"""))) return true
-
-        // raw barcode-like long digit lines
-        if (l.replace(" ", "").matches(Regex("""^\d{10,}$"""))) return true
-
-        return false
-    }
-
-    internal fun categorizeItem(itemName: String): String {
-        val lower = itemName.lowercase()
-        return when {
-            listOf(
-                "milk",
-                "cheese",
-                "yogurt",
-                "butter",
-                "cream",
-                "egg"
-            ).any { it in lower } -> "dairy"
-
-            listOf(
-                "banana",
-                "apple",
-                "orange",
-                "lettuce",
-                "tomato",
-                "potato",
-                "onion"
-            ).any { it in lower } -> "produce"
-
-            listOf(
-                "water", "juice", "coffee", "tea", "soda", "latte",
-                "cappuccino", "espresso", "mocha", "americano", "macchiato"
-            ).any { it in lower } -> "beverage"
-
-            listOf(
-                "chicken",
-                "beef",
-                "pork",
-                "fish",
-                "turkey",
-                "bacon"
-            ).any { it in lower } -> "meat"
-
-            listOf("bread", "bagel", "donut", "cake", "cookie").any { it in lower } -> "bakery"
-
-            //clothings
-            listOf(
-                "shirt", "tshirt", "t-shirt", "tee", "blouse", "tank", "hoodie", "sweater",
-                "jumper", "crop top", "top", "polo", "cardigan"
-            ).any { it in lower } -> "tops"
-
-            listOf(
-                "jeans", "pants", "trousers", "shorts", "leggings", "skirt", "cargo",
-                "joggers"
-            ).any { it in lower } -> "bottoms"
-
-            listOf(
-                "jacket",
-                "coat",
-                "parka",
-                "blazer",
-                "windbreaker",
-                "puffer"
-            ).any { it in lower } -> "outerwear"
-
-            listOf(
-                "shoes", "sneakers", "trainers", "boots", "heels", "sandals",
-                "flip flops", "slides"
-            ).any { it in lower } -> "shoes"
-
-            listOf(
-                "hat",
-                "cap",
-                "scarf",
-                "gloves",
-                "belt",
-                "sunglasses",
-                "watch",
-                "jewelry",
-                "earrings",
-                "necklace",
-                "bracelet",
-                "ring"
-            ).any { it in lower } -> "accessories"
-
-            listOf(
-                "bag",
-                "handbag",
-                "purse",
-                "backpack",
-                "tote",
-                "wallet",
-                "duffel"
-            ).any { it in lower } -> "bags"
-
-
-            listOf(
-                "subtotal", "sub total", "sub-total",
-                "tax", "vat", "total",
-                "clubcard", "savings", "saving",
-                "visa", "mastercard", "amex", "debit", "credit",
-                "payment", "paid", "change", "balance",
-                "join", "today", "thank", "visit", "www",
-                "cashier", "operator", "terminal", "auth", "ref"
-            ).any { it in lower } -> "stopKeywords"
-
-            else -> "other"
+    private fun looksLikePersonName(line: String): Boolean {
+        val words = line.trim().split(" ")
+        if (words.size != 2) return false
+        // Two words, both starting with uppercase, both all letters = likely a name
+        return words.all { word ->
+            word.isNotEmpty() &&
+                    word[0].isUpperCase() &&
+                    word.all { it.isLetter() }
         }
     }
 
+    private fun isNoiseLine(line: String): Boolean {
+        val l = line.lowercase().trim()
+        if (l.contains("www.") || l.contains("http")) return true
+        if (l.contains("tell us") || l.contains("enter for a chance")) return true
+        if (l.contains("gift card") || l.startsWith("win ")) return true
+        if (l.contains("nectar") || l.contains("points")) return true
+        if (l.contains("visa") || l.contains("mastercard") ||
+            l.contains("debit") || l.contains("credit")) return true
+        if (l.contains("auth") || l.contains("terminal") || l.contains("operator")) return true
+        if (l.contains("****") || l.matches(Regex("""^\*{2,}\d+.*$"""))) return true
+        if (l.replace(" ", "").matches(Regex("""^\d{10,}$"""))) return true
+        if (l.matches(Regex("""^[e\s]+k?\s*\d+.*$"""))) return true
+        if (l.matches(Regex("""^[a-z]\s+[a-z]\s+\d+.*$"""))) return true
+        return false
+    }
 
-        /**
-     * Extract purchase date
-     */
+    // ─────────────────────────────────────────────────────────────
+    // DATE / TIME
+    // ─────────────────────────────────────────────────────────────
+
     private fun extractDate(text: String): String? {
-        // Common date patterns
         val patterns = listOf(
-            // Full date with time — extract just the date part
             Regex("""(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})\s+\d{1,2}:\d{2}"""),
-            // Standard DD/MM/YYYY
             Regex("""\d{1,2}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{2,4}"""),
-            // YYYY-MM-DD
             Regex("""\d{4}\s*[/\-]\s*\d{1,2}\s*[/\-]\s*\d{1,2}"""),
-            // Month DD, YYYY
-            Regex("""[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}""")
+            Regex("""[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}"""),
+            Regex("""\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}""",
+                RegexOption.IGNORE_CASE)
         )
-
         for (pattern in patterns) {
             val match = pattern.find(text) ?: continue
-            // Use group 1 if available (date without time), otherwise full match
-            val date = (match.groups[1]?.value ?: match.value).trim()
-            // Validate it looks reasonable — must have 3 parts
-            val parts = date.replace(" ", "").split("/", "-")
-            if (parts.size >= 3) {
+            val date = try {
+                match.groups[1]?.value ?: match.value
+            } catch (e: IndexOutOfBoundsException) {
+                match.value
+            }.trim()
+            if (date.length >= 6 && date.any { it.isDigit() }) {
                 Log.d("PARSER", "Found date: $date")
                 return date
             }
         }
-
         Log.d("PARSER", "No date found")
         return null
     }
 
-    /**
-     * Extract total amount
-     */
+    private fun extractTime(text: String): String? {
+        val lines = text.lines()
+        for (line in lines) {
+            if (line.trim().matches(Regex("""^\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}$"""))) continue
+            val match = Regex("""\b([01]?\d|2[0-3]):([0-5]\d)\b""").find(line) ?: continue
+            val hour = match.groupValues[1].toIntOrNull() ?: continue
+            val minute = match.groupValues[2].toIntOrNull() ?: continue
+            if (hour > 23 || minute > 59) continue
+            val before = line.substring(0, match.range.first)
+            if (before.trimEnd().endsWith("/")) continue
+            return "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+        }
+        return null
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // TOTALS
+    // ─────────────────────────────────────────────────────────────
 
     private fun extractTotal(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val money = Pattern.compile("""(?:£|\$)\s*([0-9OlIo]+(?:[.,][0-9]{2})?)(?![0-9!])""")
+        fun parseMoney(s: String): Double? = parseMoneyNumber(s)
 
-        val money = Pattern.compile("""(?:£|\$)\s*([0-9]+(?:[.,][0-9]{2})?)""")
-        fun parseMoney(s: String): Double? = s.replace(",", ".").toDoubleOrNull()
-
-        // 1) Best: look for TOTAL / Total Amount lines (ignore WIN lines)
-        val totalKeywords = listOf("total amount", "amount due", "balance due", "total")
         for (ln in lines) {
             val lower = ln.lowercase()
-            if (totalKeywords.any { lower.contains(it) } && !lower.contains("win")) {
+            if ((lower.contains("total amount") || lower.contains("amount due") ||
+                        lower.contains("balance due")) && !lower.contains("win")){
                 val m = money.matcher(ln)
                 if (m.find()) {
                     val v = parseMoney(m.group(1) ?: "")
-                    if (v != null) {
-                        Log.d("PARSER", "Found total via keyword line: £$v from: $ln")
+                    if (v != null && v > 0) {
+                        Log.d("PARSER", "Total from 'total amount': £$v")
+                        return v
+                    }
+                }
+            }
+        }
+        for (ln in lines) {
+            val lower = ln.lowercase()
+            if (lower.startsWith("total") && !lower.contains("win") &&
+                !lower.contains("chance") && !lower.contains("amount")) {
+                val m = money.matcher(ln)
+                if (m.find()) {
+                    val v = parseMoney(m.group(1) ?: "")
+                    if (v != null && v > 0) {
+                        Log.d("PARSER", "Total from 'total' line: £$v")
                         return v
                     }
                 }
             }
         }
 
-        // 2) Fallback: pick the LARGEST £ amount among non-noise lines
         val candidates = mutableListOf<Double>()
         for (ln in lines) {
             if (isNoiseLine(ln)) continue
+            val lower = ln.lowercase()
+            if (lower.contains("win") || lower.contains("chance") ||
+                    lower.contains("prize") || lower.contains("gifts")) continue
             val m = money.matcher(ln)
             while (m.find()) {
                 val v = parseMoney(m.group(1) ?: "")
                 if (v != null && v in 0.01..9999.99) candidates.add(v)
             }
         }
-
-        val best = candidates.maxOrNull()
-        if (best != null) Log.d("PARSER", "Fallback total picked as max non-noise money: £$best")
-        else Log.d("PARSER", "No total found")
-
-        return best
+        return candidates.maxOrNull()
+            .also { Log.d("PARSER", "Total fallback: £$it") }
     }
 
-
-    /**
-     * Extract subtotal (before tax)
-     */
     private fun extractSubtotal(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-
-        // 1) Same-line format: "Subtotal £12.34"
         for (ln in lines) {
             val lower = ln.lowercase()
-            if (lower.contains("subtotal") || lower.contains("sub total") || lower.contains("sub-total")) {
+            if (lower.contains("subtotal") || lower.contains("sub total") ||
+                lower.contains("sub-total")) {
                 val m = moneyRegex.find(ln)
-                if (m != null) return m.groupValues[1].replace(",", ".").toDoubleOrNull()
+                if (m != null) return parseMoneyNumber(m.groupValues[1])
             }
         }
 
-        // 2) Generated format: last 3 money amounts are [subtotal, tax, total]
-        val amounts = lines.mapNotNull { ln ->
-            moneyRegex.find(ln)?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
-        }
-        if (amounts.size >= 3) return amounts[amounts.size - 3]
-
-        // 3) If we only have total & tax elsewhere, subtotal can be total - tax
         val total = extractTotal(text)
         val tax = extractTax(text)
-        return if (total != null && tax != null) (total - tax).coerceAtLeast(0.0) else null
+        return if (total != null && tax != null && tax > 0)
+                (total - tax).coerceAtLeast(0.0)
+        else
+            total
     }
 
     private fun extractTax(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-
-        // 1) Same-line format: "Tax £1.23" / "VAT £1.23"
         for (ln in lines) {
             val lower = ln.lowercase()
-            if (lower.contains("tax") || lower.contains("vat")) {
+            if ((lower.contains("tax") || lower.contains("vat")) &&
+                    !lower.contains("total") &&
+                    !lower.contains("win") &&
+                    !lower.contains("chance")) {
                 val m = moneyRegex.find(ln)
-                if (m != null) return m.groupValues[1].replace(",", ".").toDoubleOrNull()
+                if (m != null) return parseMoneyNumber(m.groupValues[1])
             }
-        }
-
-        // 2) Generated format: last 3 money amounts are [subtotal, tax, total]
-        val amounts = lines.mapNotNull { ln ->
-            moneyRegex.find(ln)?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
-        }
-        return if (amounts.size >= 2) amounts[amounts.size - 2] else null
-    }
-    private fun isNonItemHeaderLine(line: String): Boolean {
-        val l = line.lowercase().trim()
-
-        val badPhrases = listOf(
-            "order confirmation",
-            "order summary",
-            "order details",
-            "delivery:",
-            "delivery address",
-            "shipping",
-            "billing",
-            "payment method",
-            "thank you for your order",
-            "track your order",
-            "returns",
-            "customer service"
-        )
-
-        return badPhrases.any { it in l }
-    }
-
-    private fun extractTime(text: String): String?{
-        val lines = text.lines()
-
-        for (line in lines){
-            // Skip lines that look like they're purely dates
-            if (line.trim().matches(Regex("""^\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}$"""))) continue
-
-            // Look for HH:MM pattern
-            val match = Regex("""\b([01]?\d|2[0-3]):([0-5]\d)\b""").find(line) ?: continue
-
-            val hour = match.groupValues[1].toIntOrNull() ?: continue
-            val minute = match.groupValues[2].toIntOrNull() ?: continue
-
-            // Sanity check — valid time range
-            if (hour > 23 || minute > 59) continue
-
-            // Skip if this looks like a year (e.g. 20:25 in "2025")
-            val fullMatch = match.value
-            val before = line.substring(0, match.range.first)
-            if (before.trimEnd().endsWith("/")) continue
-
-            return "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
         }
         return null
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // CATEGORISATION
+    // ─────────────────────────────────────────────────────────────
+
+    internal fun categorizeItem(itemName: String): String {
+        val lower = itemName.lowercase()
+        return when {
+            listOf("milk","cheese","yogurt","butter","cream","egg").any { it in lower } -> "dairy"
+            listOf("banana","apple","orange","lettuce","tomato","potato","onion",
+                "salad","fruit","veg").any { it in lower } -> "produce"
+            listOf("water","juice","coffee","tea","soda","latte","cappuccino",
+                "espresso","mocha","americano","macchiato").any { it in lower } -> "beverage"
+            listOf("chicken","beef","pork","fish","turkey","bacon","ham","meat",
+                "sandwich").any { it in lower } -> "meat"
+            listOf("bread","bagel","donut","cake","cookie","biscuit","croissant",
+                "muffin","pastry","cereal").any { it in lower } -> "bakery"
+            listOf("shirt","tshirt","t-shirt","tee","blouse","tank","hoodie","sweater",
+                "jumper","crop top","top","polo","cardigan").any { it in lower } -> "tops"
+            listOf("jeans","pants","trousers","shorts","leggings","skirt","cargo",
+                "joggers","dress").any { it in lower } -> "bottoms"
+            listOf("jacket","coat","parka","blazer","windbreaker","puffer").any { it in lower } -> "outerwear"
+            listOf("shoes","sneakers","trainers","boots","heels","sandals",
+                "flip flops","slides").any { it in lower } -> "shoes"
+            listOf("hat","cap","scarf","gloves","belt","sunglasses","watch",
+                "jewelry","earrings","necklace","bracelet","ring").any { it in lower } -> "accessories"
+            listOf("bag","handbag","purse","backpack","tote","wallet","duffel").any { it in lower } -> "bags"
+            listOf("shampoo","conditioner","soap","detergent","toothpaste","deodorant",
+                "moisturiser","lotion").any { it in lower } -> "toiletries"
+            listOf("shelf","lamp","rug","plant","pot","candle","frame","cushion",
+                "mop","batteries","lightbulb").any { it in lower } -> "homeware"
+            listOf("subtotal","sub total","sub-total","tax","vat","total",
+                "clubcard","savings","saving","visa","mastercard","amex","debit","credit",
+                "payment","paid","change","balance","join","today","thank","visit","www",
+                "cashier","operator","terminal","auth","ref").any { it in lower } -> "stopKeywords"
+            else -> "other"
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // KNOWN STORES
+    // ─────────────────────────────────────────────────────────────
+
+    private val knownStores = listOf(
+        "tesco", "sainsbury", "asda", "morrisons", "waitrose", "aldi", "lidl",
+        "co-op", "coop", "co op", "iceland", "marks", "m&s", "marks and spencer",
+        "pret", "costa", "starbucks", "greggs", "dunkin", "caffe nero", "nero",
+        "primark", "wilko", "boots", "superdrug", "ikea", "argos", "next", "matalan",
+        "h&m", "hm", "zara", "topshop", "jd sports", "sports direct", "nike", "adidas",
+        "amazon", "asos", "shein", "ebay", "very", "mcdonalds", "kfc", "subway",
+        "pizza", "nando", "wagamama", "itsu", "leon"
+    )
 }
