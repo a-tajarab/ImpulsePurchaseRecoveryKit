@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,12 +29,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -48,8 +51,12 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
 
     val permissionState = rememberPermissionState(permission)
 
+    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
+
+
     var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedIndex by remember { mutableIntStateOf(-1) }
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
     LaunchedEffect(permissionState.status.isGranted) {
         if (permissionState.status.isGranted) {
@@ -69,6 +76,29 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
     }
     val inPreview = selectedIndex >= 0 && selectedIndex < imageUris.size
 
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && cameraImageUri != null) {
+            imageUris = listOf(cameraImageUri!!) + imageUris
+            selectedIndex = 0
+        }
+    }
+
+    fun launchCamera() {
+        val photoFile = File.createTempFile(
+            "receipt_", ".jpg",
+            context.cacheDir
+        )
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+        cameraImageUri = uri
+        cameraLauncher.launch(uri)
+    }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -87,6 +117,17 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
                 TopAppBar(
                     title = { Text("Choose a receipt photo") },
                     actions = {
+                        IconButton(
+                            onClick = {
+                                if (cameraPermissionState.status.isGranted) {
+                                    launchCamera()
+                                } else {
+                                    cameraPermissionState.launchPermissionRequest()
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Take photo")
+                        }
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
                         }
