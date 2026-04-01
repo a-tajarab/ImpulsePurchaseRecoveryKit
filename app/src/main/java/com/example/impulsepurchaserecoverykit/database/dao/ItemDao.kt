@@ -51,4 +51,11 @@ interface ItemDao {
 """)
     fun getItemCountByCategory(): Flow<List<CategoryCount>>
 
+    @Query("""
+    UPDATE items 
+    SET name = :name, price = :price, quantity = :quantity 
+    WHERE id = :itemId
+""")
+    suspend fun updateItem(itemId: Long, name: String, price: Double, quantity: Int)
+
 }

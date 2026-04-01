@@ -187,4 +187,30 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     fun getReceiptByIdFlow(receiptId: Long): Flow<ReceiptEntity?> {
         return repository.getReceiptByIdFlow(receiptId)
     }
+
+    fun updateReceiptDetails(
+        receiptId: Long,
+        storeName: String?,
+        purchaseDate: String?,
+        purchaseTime: String?,
+        totalAmount: Double?
+    ) {
+        viewModelScope.launch {
+            repository.updateReceiptDetails(
+                receiptId, storeName, purchaseDate, purchaseTime, totalAmount
+            )
+        }
+    }
+
+    fun updateItem(itemId: Long, name: String, price: Double, quantity: Int) {
+        viewModelScope.launch {
+            repository.updateItem(itemId, name, price, quantity)
+        }
+    }
+
+    fun addItemToReceipt(receiptId: Long, name: String, price: Double, quantity: Int) {
+        viewModelScope.launch {
+            repository.addItemToReceipt(receiptId, name, price, quantity)
+        }
+    }
 }

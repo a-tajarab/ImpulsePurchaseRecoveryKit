@@ -83,4 +83,22 @@ interface ReceiptDao {
     @Query("UPDATE receipts SET purchaseTime = :time WHERE id = :receiptId")
     suspend fun updatePurchaseTime(receiptId: Long, time: String)
 
+    @Query("""
+    UPDATE receipts 
+    SET storeName = :storeName,
+        purchaseDate = :purchaseDate,
+        purchaseTime = :purchaseTime,
+        totalAmount = :totalAmount,
+        updatedAt = :updatedAt
+    WHERE id = :receiptId
+""")
+    suspend fun updateReceiptDetails(
+        receiptId: Long,
+        storeName: String?,
+        purchaseDate: String?,
+        purchaseTime: String?,
+        totalAmount: Double?,
+        updatedAt: Long = System.currentTimeMillis()
+    )
+
 }

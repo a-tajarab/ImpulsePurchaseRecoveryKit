@@ -3,6 +3,7 @@ package com.example.impulsepurchaserecoverykit.database
 import androidx.room.withTransaction
 import com.example.impulsepurchaserecoverykit.ImpulseScorer
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
+import com.example.impulsepurchaserecoverykit.ReceiptParser
 import com.example.impulsepurchaserecoverykit.database.dao.ItemReactionDao
 import com.example.impulsepurchaserecoverykit.database.entities.EmotionEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
@@ -250,6 +251,39 @@ class ReceiptRepository(private val database: AppDatabase) {
             receiptDao.updateUserSentiment(receiptId, score, label)
 
         }
+    }
+
+    suspend fun updateReceiptDetails(
+        receiptId: Long,
+        storeName: String?,
+        purchaseDate: String?,
+        purchaseTime: String?,
+        totalAmount: Double?
+    ) {
+        receiptDao.updateReceiptDetails(
+            receiptId = receiptId,
+            storeName = storeName,
+            purchaseDate = purchaseDate,
+            purchaseTime = purchaseTime,
+            totalAmount = totalAmount,
+            updatedAt = System.currentTimeMillis()
+        )
+    }
+
+    suspend fun updateItem(itemId: Long, name: String, price: Double, quantity: Int) {
+        itemDao.updateItem(itemId, name, price, quantity)
+    }
+
+    suspend fun addItemToReceipt(receiptId: Long, name: String, price: Double, quantity: Int) {
+        val parser = ReceiptParser()
+        val item = ItemEntity(
+            receiptId = receiptId,
+            name = name,
+            price = price,
+            quantity = quantity,
+            category = parser.categorizeItem(name)
+        )
+        itemDao.insertItem(item)
     }
 }
 

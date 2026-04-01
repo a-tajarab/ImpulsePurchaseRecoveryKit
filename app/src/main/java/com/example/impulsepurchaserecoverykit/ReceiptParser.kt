@@ -250,7 +250,7 @@ class ReceiptParser {
         return false
     }
 
-    private fun categorizeItem(itemName: String): String {
+    internal fun categorizeItem(itemName: String): String {
         val lower = itemName.lowercase()
         return when {
             listOf(

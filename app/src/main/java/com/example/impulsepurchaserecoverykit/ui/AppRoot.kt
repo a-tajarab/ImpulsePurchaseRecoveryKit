@@ -153,6 +153,7 @@ fun AppRoot(
                     receiptId = receiptId,
                     viewModel = viewModel,
                     onSetRegret = { navController.navigate(Screen.Regret.create(receiptId)) },
+                    onEdit = { navController.navigate(Screen.EditReceipt.create(receiptId)) },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -220,6 +221,7 @@ fun AppRoot(
                     onBack = { navController.popBackStack()}
                 )
             }
+
         }
     }
 }

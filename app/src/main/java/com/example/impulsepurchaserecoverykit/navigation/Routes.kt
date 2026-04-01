@@ -11,6 +11,9 @@ sealed class Screen(val route: String) {
     data object Scan : Screen("scan")
     data object Bot : Screen("bot")
     data object ManualEntry : Screen("manual_entry")
+    data object EditReceipt : Screen("edit_receipt/{receiptId}") {  // ← add this
+        fun create(receiptId: Long) = "edit_receipt/$receiptId"
+    }
     data object OcrFailure : Screen("ocr_failure/{reason}"){
         fun create(reason : OcrFailureReason) = "ocr_failure/${reason.name}"
     }
