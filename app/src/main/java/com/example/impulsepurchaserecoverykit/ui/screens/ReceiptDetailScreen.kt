@@ -27,6 +27,16 @@ import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
 import org.json.JSONArray
 
 
+class ItemDraft(
+    val id: Long,
+    initialName: String,      // ← renamed to "initial..."
+    initialPrice: String,
+    initialQuantity: String
+) {
+    var name by mutableStateOf(initialName)
+    var price by mutableStateOf(initialPrice)
+    var quantity by mutableStateOf(initialQuantity)
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReceiptDetailScreen(
@@ -53,13 +63,6 @@ fun ReceiptDetailScreen(
     var editTime by remember { mutableStateOf("") }
     var editTotal by remember { mutableStateOf("") }
 
-    // Edit state for items — map of itemId to mutable draft
-    data class ItemDraft(
-        val id: Long,
-        var name: String,
-        var price: String,
-        var quantity: String
-    )
     val itemDrafts = remember { mutableStateListOf<ItemDraft>() }
 
     if (receipt == null) {
@@ -86,9 +89,9 @@ fun ReceiptDetailScreen(
             itemDrafts.addAll(items.map { item ->
                 ItemDraft(
                     id = item.id,
-                    name = item.name,
-                    price = item.price.toString(),
-                    quantity = item.quantity.toString()
+                    initialName = item.name,
+                    initialPrice = item.price.toString(),
+                    initialQuantity = item.quantity.toString()
                 )
             })
         }
@@ -367,9 +370,9 @@ fun ReceiptDetailScreen(
                                     itemDrafts.add(
                                         ItemDraft(
                                             id = -System.currentTimeMillis(), // temp negative ID for new items
-                                            name = "",
-                                            price = "",
-                                            quantity = "1"
+                                            initialName = "",
+                                            initialPrice = "",
+                                            initialQuantity = "1"
                                         )
                                     )
                                 },
