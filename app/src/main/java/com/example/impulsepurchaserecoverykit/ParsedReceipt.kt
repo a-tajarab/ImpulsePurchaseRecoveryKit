@@ -18,6 +18,7 @@ data class ParsedReceipt(
     val items: List<ParsedItem>,
     val subtotal: Double?,
     val tax: Double?,
+    val shipping: Double? = null,
     val total: Double?,
     val rawText: String // Keep original for debugging
 ) {

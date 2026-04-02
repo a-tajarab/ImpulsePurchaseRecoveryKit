@@ -14,6 +14,7 @@ class ReceiptParser {
         val total = extractTotal(rawText)
         val subtotal = extractSubtotal(rawText)
         val tax = extractTax(rawText)
+        val shipping = extractShipping(rawText, items, total, tax)
 
         val receipt = ParsedReceipt(
             storeName = storeName,
@@ -22,6 +23,7 @@ class ReceiptParser {
             items = items,
             subtotal = subtotal,
             tax = tax,
+            shipping = shipping,
             total = total,
             rawText = rawText
         )
@@ -179,37 +181,14 @@ class ReceiptParser {
         val items = mutableListOf<ParsedItem>()
         val lowerStore = storeName?.lowercase()?.trim()
 
-        val total = precomputedTotal
-        val subtotal = precomputedSubtotal
-        val tax = precomputedTax
-
-        fun approxEq(a: Double?, b: Double?): Boolean {
-            if (a == null || b == null) return false
-            return kotlin.math.abs(a - b) <= 0.01
-        }
-
-        // Collect prices — exclude total/subtotal/tax
-        val prices = mutableListOf<Double>()
-        val seenPrices = mutableSetOf<Double>()
-
+        val allPricesInOrder = mutableListOf<Double>()
         for (line in lines) {
-            val price = extractMoneyFromLine(line) ?: continue
-            if (price !in 0.01..9999.99) continue
-            if (approxEq(price, total)) continue
-            if (approxEq(price, subtotal)) continue
-            if (approxEq(price, tax)) continue
-
-            val lower = line.lowercase()
-            if (lower.contains("win") || lower.contains("chance") ||
-                lower.contains("prize") || lower.contains("gift") ||
-                lower.contains("survey") || lower.contains("feedback")) continue
             if (isNoiseLine(line)) continue
-
-            prices.add(price)
+            val price = extractMoneyFromLine(line) ?: continue
+            if (price in 0.01..9999.99) allPricesInOrder.add(price)
         }
 
-
-        // Hard skip for name collection
+        // ── Collect name candidates in order ──
         val hardSkip = listOf(
             "thank you", "order date", "order number", "order ref", "order no",
             "order confirmation", "order summary",
@@ -223,66 +202,51 @@ class ReceiptParser {
             "cashier", "operator", "terminal", "auth",
             "nectar", "clubcard", "points", "savings",
             "return", "refund", "exchange",
-            "sample", "example", "test"  // test receipt addresses
+            "sample", "example", "test"
         )
 
-        // Collect item name candidates
         val nameCandidates = mutableListOf<String>()
-
         for (line in lines) {
             val lower = line.lowercase()
-
-            // Skip hard-skip phrases
             if (hardSkip.any { it in lower }) continue
-
-            // Skip noise
             if (isNoiseLine(line)) continue
-
-            // Skip addresses (enhanced)
             if (looksLikeAddress(line)) continue
-
-            // Skip phone/ref
             if (looksLikePhoneOrRef(line)) continue
-
-            // Skip date/time
             if (looksLikeDateOrTime(line)) continue
-
-            // Skip store name line
             if (lowerStore != null && lower.contains(lowerStore)) continue
-
-            // Skip lines containing money
             if (extractMoneyFromLine(line) != null) continue
-
-            // Skip pure number lines
             if (line.replace(" ", "").all { it.isDigit() }) continue
-
             val cleaned = cleanItemName(line)
             if (cleaned.length < 2) continue
             if (!cleaned.any { it.isLetter() }) continue
             if (categorizeItem(cleaned) == "stopKeywords") continue
-
-            // Skip lines that are after "Shipping to:" — likely address
             val idx = lines.indexOf(line)
             val beforeLines = lines.take(idx).map { it.lowercase() }
             val afterShippingTo = beforeLines.any {
                 it.startsWith("shipping to") || it == "shipping to:"
             }
             if (afterShippingTo) {
-                // Only keep if it looks like a real product
                 val isProduct = productKeywords.any { it in lower }
                 if (!isProduct) continue
             }
-
             nameCandidates.add(cleaned)
             Log.d("PARSER", "Name candidate: $cleaned")
         }
 
-        Log.d("PARSER", "Split column — names: ${nameCandidates.size}, prices: ${prices.size}")
+        // ── KEY INSIGHT: prices are ordered as [item1, item2, ..., subtotal, tax, total]
+        // We know how many items there are = nameCandidates.size
+        // So item prices = first N prices from allPricesInOrder
+        // ──
+        val itemCount = nameCandidates.size
+        val itemPrices = allPricesInOrder.take(itemCount)
 
-        val pairCount = minOf(nameCandidates.size, prices.size)
+        Log.d("PARSER", "Split column — names: ${nameCandidates.size}, " +
+                "all prices: ${allPricesInOrder.size}, taking first: $itemCount")
+
+        val pairCount = minOf(nameCandidates.size, itemPrices.size)
         for (i in 0 until pairCount) {
             val name = nameCandidates[i]
-            val price = prices[i]
+            val price = itemPrices[i]
             items.add(ParsedItem(name, price, 1, categorizeItem(name)))
             Log.d("PARSER", "Split paired: $name -> £$price")
         }
@@ -450,16 +414,14 @@ class ReceiptParser {
 
     private fun extractTotal(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        val money = Pattern.compile("""(?:£|\$)\s*([0-9OlIo]+(?:[.,][0-9]{2})?)(?![0-9!])""")
-        fun parseMoney(s: String): Double? = parseMoneyNumber(s)
+        val totalKeywords = listOf("total amount", "amount due", "balance due")
 
         for (ln in lines) {
             val lower = ln.lowercase()
-            if ((lower.contains("total amount") || lower.contains("amount due") ||
-                        lower.contains("balance due")) && !lower.contains("win")){
-                val m = money.matcher(ln)
-                if (m.find()) {
-                    val v = parseMoney(m.group(1) ?: "")
+            if (totalKeywords.any { lower.contains(it) } && !lower.contains("win")) {
+                val m = moneyRegex.find(ln)
+                if (m != null) {
+                    val v = parseMoneyNumber(m.groupValues[1])
                     if (v != null && v > 0) {
                         Log.d("PARSER", "Total from 'total amount': £$v")
                         return v
@@ -471,9 +433,9 @@ class ReceiptParser {
             val lower = ln.lowercase()
             if (lower.startsWith("total") && !lower.contains("win") &&
                 !lower.contains("chance") && !lower.contains("amount")) {
-                val m = money.matcher(ln)
-                if (m.find()) {
-                    val v = parseMoney(m.group(1) ?: "")
+                val m = moneyRegex.find(ln)
+                if (m != null) {
+                    val v = parseMoneyNumber(m.groupValues[1])
                     if (v != null && v > 0) {
                         Log.d("PARSER", "Total from 'total' line: £$v")
                         return v
@@ -482,54 +444,122 @@ class ReceiptParser {
             }
         }
 
-        val candidates = mutableListOf<Double>()
+
+        // Use findAll to get all matches
+        val allCandidates = mutableListOf<Double>()
         for (ln in lines) {
             if (isNoiseLine(ln)) continue
             val lower = ln.lowercase()
             if (lower.contains("win") || lower.contains("chance") ||
-                    lower.contains("prize") || lower.contains("gifts")) continue
-            val m = money.matcher(ln)
-            while (m.find()) {
-                val v = parseMoney(m.group(1) ?: "")
-                if (v != null && v in 0.01..9999.99) candidates.add(v)
+                lower.contains("prize") || lower.contains("gift")) continue
+            moneyRegex.findAll(ln).forEach { match ->
+                val v = parseMoneyNumber(match.groupValues[1])
+                if (v != null && v in 0.01..9999.99) allCandidates.add(v)
             }
         }
-        return candidates.maxOrNull()
+
+        return allCandidates.maxOrNull()
             .also { Log.d("PARSER", "Total fallback: £$it") }
+    }
+
+    private fun extractTax(text: String): Double? {
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+        // Strategy 1: keyword and price on same line
+        for (ln in lines) {
+            val lower = ln.lowercase()
+            if ((lower.contains("tax") || lower.contains("vat")) &&
+                !lower.contains("total") && !lower.contains("win")) {
+                val m = moneyRegex.find(ln)
+                if (m != null) {
+                    val value = parseMoneyNumber(m.groupValues[1])
+                    if (value != null && value > 0) return value
+                }
+            }
+        }
+
+        // Strategy 2: keyword on separate line from prices
+        // Find all money values, then use position relative to total
+        val total = extractTotal(text)
+        val allMoney = lines
+            .filter { !isNoiseLine(it) }
+            .filter { ln ->
+                val lower = ln.lowercase()
+                !lower.contains("win") && !lower.contains("chance") &&
+                        !lower.contains("prize") && !lower.contains("gift") &&
+                        !lower.startsWith("total")
+            }
+            .mapNotNull { extractMoneyFromLine(it) }
+            .filter { it in 0.01..9999.99}
+
+        // Check if receipt has a "Tax" keyword line — if yes, use position logic
+        val hasTaxLabel = lines.any { ln ->
+            val lower = ln.lowercase().trim()
+            lower == "tax" || lower == "vat"
+        }
+
+        if (!hasTaxLabel) return null
+
+        // Structure is always: [items..., subtotal, tax, total]
+        // Tax = second to last value (before total)
+        val withoutTotal = if (total != null && allMoney.lastOrNull() == total)
+            allMoney.dropLast(1) else allMoney
+
+        return if (withoutTotal.size >= 2) {
+            val taxValue = withoutTotal.last()
+            Log.d("PARSER", "Found tax (position after label): £$taxValue")
+            taxValue
+        } else null
     }
 
     private fun extractSubtotal(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+        // Strategy 1: keyword and price on same line
         for (ln in lines) {
             val lower = ln.lowercase()
             if (lower.contains("subtotal") || lower.contains("sub total") ||
                 lower.contains("sub-total")) {
                 val m = moneyRegex.find(ln)
-                if (m != null) return parseMoneyNumber(m.groupValues[1])
+                if (m != null) {
+                    val value = parseMoneyNumber(m.groupValues[1])
+                    if (value != null && value > 0) return value
+                }
             }
         }
 
+        // Strategy 2: has subtotal label but price is in separate block
+        val hasSubtotalLabel = lines.any { ln ->
+            val lower = ln.lowercase().trim()
+            lower == "subtotal" || lower == "sub total" || lower == "sub-total"
+        }
+
+        if (!hasSubtotalLabel) {
+            // Try deriving from total - tax
+            val tax = extractTax(text)
+            if (tax != null && tax > 0) {
+                val total = extractTotal(text)
+                if (total != null) return (total - tax).coerceAtLeast(0.0)
+            }
+            return null  // No label and no tax = show —
+        }
+
+        // Has label — structure: [items..., subtotal, tax, total]
+        // Subtotal = third to last value
         val total = extractTotal(text)
-        val tax = extractTax(text)
-        return if (total != null && tax != null && tax > 0)
-                (total - tax).coerceAtLeast(0.0)
-        else
-            total
-    }
+        val allMoney = lines
+            .filter { !isNoiseLine(it) }
+            .mapNotNull { extractMoneyFromLine(it) }
+            .filter { it in 0.01..9999.99 }
 
-    private fun extractTax(text: String): Double? {
-        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        for (ln in lines) {
-            val lower = ln.lowercase()
-            if ((lower.contains("tax") || lower.contains("vat")) &&
-                    !lower.contains("total") &&
-                    !lower.contains("win") &&
-                    !lower.contains("chance")) {
-                val m = moneyRegex.find(ln)
-                if (m != null) return parseMoneyNumber(m.groupValues[1])
-            }
-        }
-        return null
+        val withoutTotal = if (total != null && allMoney.lastOrNull() == total)
+            allMoney.dropLast(1) else allMoney
+
+        return if (withoutTotal.size >= 2) {
+            val subtotalValue = withoutTotal[withoutTotal.size - 2]
+            Log.d("PARSER", "Found subtotal (position): £$subtotalValue")
+            subtotalValue
+        } else null
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -583,4 +613,64 @@ class ReceiptParser {
         "amazon", "asos", "shein", "ebay", "very", "mcdonalds", "kfc", "subway",
         "pizza", "nando", "wagamama", "itsu", "leon"
     )
+
+    private fun extractShipping(
+        text: String,
+        items: List<ParsedItem>,
+        total: Double?,
+        tax: Double?
+    ): Double? {
+
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+        // Strategy 1: keyword on same line as price
+        for (ln in lines) {
+            val lower = ln.lowercase()
+            if ((lower.contains("shipping") || lower.contains("delivery") ||
+                        lower.contains("postage")) &&
+                !lower.contains("shipping to") &&
+                !lower.contains("address")) {
+                val m = moneyRegex.find(ln)
+                if (m != null) {
+                    val value = parseMoneyNumber(m.groupValues[1])
+                    if (value != null && value in 0.01..99.99) {
+                        Log.d("PARSER", "Found shipping (keyword): £$value")
+                        return value
+                    }
+                }
+            }
+        }
+
+        // Strategy 2: remainder calculation
+        // BUT only if this receipt has NO subtotal/tax/total labels at all
+        // If it has those labels, the remainder IS the tax — not shipping
+        val hasFinancialLabels = lines.any { ln ->
+            val lower = ln.lowercase().trim()
+            lower == "tax" || lower == "vat" ||
+                    lower == "subtotal" || lower == "sub total" ||
+                    lower.startsWith("subtotal") || lower.startsWith("sub total") ||
+                    lower == "total" || lower.startsWith("total")
+        }
+
+        if (hasFinancialLabels) {
+            Log.d("PARSER", "Receipt has financial labels — skipping shipping remainder calc")
+            return null
+        }
+
+        // Only calculate remainder for receipts WITHOUT financial labels
+        // (pure online order format: items + shipping + total, no tax/subtotal)
+        if (total != null && items.isNotEmpty()) {
+            val itemsSum = items.sumOf { it.price * it.quantity }
+            val taxAmount = tax ?: 0.0
+            val remainder = total - itemsSum - taxAmount
+            val rounded = Math.round(remainder * 100.0) / 100.0
+
+            if (rounded in 0.01..99.99) {
+                Log.d("PARSER", "Calculated shipping from remainder: £$rounded")
+                return rounded
+            }
+        }
+
+        return null
+    }
 }

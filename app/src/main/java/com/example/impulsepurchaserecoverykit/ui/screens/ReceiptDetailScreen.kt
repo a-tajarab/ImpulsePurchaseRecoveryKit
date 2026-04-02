@@ -225,9 +225,12 @@ fun ReceiptDetailScreen(
                         // ===== Facts Section (no judgement) =====
                         Text("Date: ${r.purchaseDate ?: "—"}")
                         Text("Time: ${r.purchaseTime ?: "Not recorded"}")
-                        Text("Subtotal: £${r.subtotal ?: "—"}")
-                        Text("Tax: £${r.tax ?: "—"}")
-                        Text("Total: £${r.totalAmount ?: "—"}")
+                        Text("Subtotal: £${r.subtotal?.let { "%.2f".format(it) } ?: "—"}")
+                        Text("Tax: £${r.tax?.let {"%.2f".format(it) } ?: "—"}")
+                        r.shipping?.let { shipping ->
+                            Text("🚚 Shipping: £${"%.2f".format(shipping)}")
+                        }
+                        Text("Total: £${r.totalAmount?.let {"%.2f".format(it) } ?: "—"}")
                         Text("Regret: ${r.regretScore?.toString() ?: "Not rated"}")
 
                         val sentimentText = if (r.userSentimentLabel != null)
@@ -311,7 +314,7 @@ fun ReceiptDetailScreen(
                                 ) {
                                     Text(item.name, style = MaterialTheme.typography.titleMedium)
                                     Text("Category: ${item.category}")
-                                    Text("Price: £${item.price}  x${item.quantity}")
+                                    Text("Price: £${"%.2f".format(item.price)}  x ${item.quantity}")
                                 }
                             }
                         }

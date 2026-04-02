@@ -14,6 +14,8 @@ data class ReceiptEntity(
     val totalAmount: Double?,
     val subtotal: Double?,
     val tax: Double?,
+
+    val shipping: Double? = null,
     val rawOcrText: String,
     val imageUri: String?,
 

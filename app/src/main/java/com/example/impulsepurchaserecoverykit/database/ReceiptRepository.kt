@@ -40,6 +40,7 @@ class ReceiptRepository(private val database: AppDatabase) {
             totalAmount = parsedReceipt.total,
             subtotal = parsedReceipt.subtotal,
             tax = parsedReceipt.tax,
+            shipping = parsedReceipt.shipping,
             rawOcrText = parsedReceipt.rawText,
             imageUri = imageUri,
 
