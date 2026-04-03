@@ -1,29 +1,34 @@
 package com.example.impulsepurchaserecoverykit.ui.screens
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.SentimentDissatisfied
 import androidx.compose.material.icons.filled.SentimentNeutral
 import androidx.compose.material.icons.filled.SentimentSatisfied
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
+import com.example.impulsepurchaserecoverykit.ui.theme.*
 import org.json.JSONArray
 
 
@@ -47,8 +52,7 @@ fun ReceiptDetailScreen(
     onEdit: () -> Unit,
     onBack: () -> Unit
 ) {
-    //val receipts by viewModel.getAllReceipts().collectAsState(initial = emptyList())
-    //val receipt = receipts.firstOrNull { it.id == receiptId }
+
     val receipt by viewModel.getReceiptByIdFlow(receiptId).collectAsState(initial = null)
     val items by viewModel.getItemsForReceipt(receiptId).collectAsState(initial = emptyList())
 
@@ -72,7 +76,7 @@ fun ReceiptDetailScreen(
                 .padding(paddingValues),
             contentAlignment = Alignment.Center
         ){
-            CircularProgressIndicator()
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
         return
     }
@@ -100,8 +104,21 @@ fun ReceiptDetailScreen(
     if (showDeleteDialog){
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete receipt?") },
-            text = { Text("This will permanently delete this receipt and all its data. This cannot be undone.")},
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    "Delete receipt?",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                    },
+            text = {
+                Text(
+                    "This will permanently delete this receipt and all its data. This cannot be undone.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                   },
             confirmButton = {
                 Button(
                     onClick = {
@@ -110,14 +127,19 @@ fun ReceiptDetailScreen(
                         onBack()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
+                        containerColor = Error700,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Delete")
+                    Text("Delete", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showDeleteDialog = false }) {
+                OutlinedButton(
+                    onClick = { showDeleteDialog = false },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
                     Text("Cancel")
                 }
             }
@@ -127,7 +149,9 @@ fun ReceiptDetailScreen(
 
     if (showAnalysisSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showAnalysisSheet = false }
+            onDismissRequest = { showAnalysisSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
         ) {
             AnalysisSheetContent(
                 receiptId = receiptId,
@@ -141,276 +165,568 @@ fun ReceiptDetailScreen(
         }
     }
 
-    LazyColumn(
+    Column(
         modifier = Modifier
-            .padding(paddingValues)
-            .fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        item{
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(
+                    top = paddingValues.calculateTopPadding() + 12.dp,
+                    bottom = 16.dp,
+                    start = 16.dp,
+                    end = 16.dp
+                )
         ) {
-            OutlinedButton(onClick = {
-                if (isEditing) isEditing = false else onBack()
-            }) {
-                Text(if (isEditing) "Cancel" else "Back")
-            }
-
-            if (!isEditing) {
-                Button(
-                    onClick = onSetRegret,
-                    modifier = Modifier.weight(1f)
-                ) { Text("Rate Regret") }
-
-                OutlinedButton(onClick = { isEditing = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit")
-                }
-                OutlinedButton(
-                    onClick = { showDeleteDialog = true },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete")
-                }
-            } else {
-                Button(
-                    onClick = {
-                        viewModel.updateReceiptDetails(
-                            receiptId = receiptId,
-                            storeName = editStoreName.ifBlank { null },
-                            purchaseDate = editDate.ifBlank { null },
-                            purchaseTime = editTime.ifBlank { null },
-                            totalAmount = editTotal.toDoubleOrNull()
-                        )
-                        // Save item edits
-                        itemDrafts.forEach { draft ->
-                            if (draft.id > 0) {
-                                viewModel.updateItem(
-                                    itemId = draft.id,
-                                    name = draft.name,
-                                    price = draft.price.toDoubleOrNull() ?: 0.0,
-                                    quantity = draft.quantity.toIntOrNull() ?: 1
-                                )
-                            } else {
-                                if (draft.name.isNotBlank()) {
-                                    viewModel.addItemToReceipt(
-                                        receiptId = receiptId,
-                                        name = draft.name,
-                                        price = draft.price.toDoubleOrNull() ?: 0.0,
-                                        quantity = draft.quantity.toIntOrNull() ?: 1
-                                    )
-                                }
-                            }
-                        }
-                        isEditing = false
-                    },
-                    modifier = Modifier.weight(1f)
-                ) { Text("Save changes", fontWeight = FontWeight.Bold) }
-            }
-        }
-        }
-        item {
-            if (!isEditing) {
-                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    OutlinedButton(
+                        onClick = {
+                            if (isEditing) isEditing = false else onBack()
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(
-                            r.storeName ?: "Unknown store",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        // ===== Facts Section (no judgement) =====
-                        Text("Date: ${r.purchaseDate ?: "—"}")
-                        Text("Time: ${r.purchaseTime ?: "Not recorded"}")
-                        Text("Subtotal: £${r.subtotal?.let { "%.2f".format(it) } ?: "—"}")
-                        Text("Tax: £${r.tax?.let {"%.2f".format(it) } ?: "—"}")
-                        r.shipping?.let { shipping ->
-                            Text("🚚 Shipping: £${"%.2f".format(shipping)}")
-                        }
-                        Text("Total: £${r.totalAmount?.let {"%.2f".format(it) } ?: "—"}")
-                        Text("Regret: ${r.regretScore?.toString() ?: "Not rated"}")
-
-                        val sentimentText = if (r.userSentimentLabel != null)
-                            "Item sentiment: ${r.userSentimentLabel} (${r.userSentimentScore}/100)"
-                        else "Item sentiment: Rate items in Analysis to see this"
-                        Text(
-                            sentimentText, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            } else {
-                // EDIT MODE — receipt fields
-                ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            "Editing receipt details",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        OutlinedTextField(
-                            value = editStoreName,
-                            onValueChange = { editStoreName = it },
-                            label = { Text("Store name") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = editDate,
-                            onValueChange = { editDate = it },
-                            label = { Text("Purchase date") },
-                            placeholder = { Text("e.g. 28/11/2025") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = editTime,
-                            onValueChange = { input ->
-                                if (input.length <= 5 && input.all { c -> c.isDigit() || c == ':' })
-                                    editTime = input
-                            },
-                            label = { Text("Purchase time") },
-                            placeholder = { Text("e.g. 14:30") },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = editTotal,
-                            onValueChange = { editTotal = it },
-                            label = { Text("Total (£)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true
+                            if (isEditing) "Cancel" else "Back",
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
-                }
-            }
-        }
-                item {
-                    HorizontalDivider()
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Items",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                if (items.isEmpty()) {
-                    item { Text ("No items parsed for this receipt.")}
-                } else {
                     if (!isEditing) {
-                        items(items, key = { it.id }) { item ->
-                            ElevatedCard(Modifier.fillMaxWidth()) {
-                                Column(
-                                    Modifier.padding(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(item.name, style = MaterialTheme.typography.titleMedium)
-                                    Text("Category: ${item.category}")
-                                    Text("Price: £${"%.2f".format(item.price)}  x ${item.quantity}")
-                                }
-                            }
+                        Button(
+                            onClick = onSetRegret,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Terra500,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Rate Regret", fontWeight = FontWeight.Bold)
+                        }
+
+                        IconButton(
+                            onClick = { isEditing = true }) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                        IconButton(
+                            onClick = { showDeleteDialog = true }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                            )
                         }
                     } else {
-                        // EDIT MODE items
-                        items(itemDrafts, key = { it.id }) { draft ->
-                            ElevatedCard(Modifier.fillMaxWidth()) {
-                                Column(
-                                    Modifier.padding(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    OutlinedTextField(
-                                        value = draft.name,
-                                        onValueChange = { draft.name = it },
-                                        label = { Text("Item name") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true
-                                    )
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        OutlinedTextField(
-                                            value = draft.price,
-                                            onValueChange = { draft.price = it },
-                                            label = { Text("Price (£)") },
-                                            modifier = Modifier.weight(1f),
-                                            keyboardOptions = KeyboardOptions(
-                                                keyboardType = KeyboardType.Decimal
-                                            ),
-                                            singleLine = true
+                        Button(
+                            onClick = {
+                                viewModel.updateReceiptDetails(
+                                    receiptId = receiptId,
+                                    storeName = editStoreName.ifBlank { null },
+                                    purchaseDate = editDate.ifBlank { null },
+                                    purchaseTime = editTime.ifBlank { null },
+                                    totalAmount = editTotal.toDoubleOrNull()
+                                )
+                                // Save item edits
+                                itemDrafts.forEach { draft ->
+                                    if (draft.id > 0) {
+                                        viewModel.updateItem(
+                                            itemId = draft.id,
+                                            name = draft.name,
+                                            price = draft.price.toDoubleOrNull() ?: 0.0,
+                                            quantity = draft.quantity.toIntOrNull() ?: 1
                                         )
-                                        OutlinedTextField(
-                                            value = draft.quantity,
-                                            onValueChange = { draft.quantity = it },
-                                            label = { Text("Qty") },
-                                            modifier = Modifier.width(80.dp),
-                                            keyboardOptions = KeyboardOptions(
-                                                keyboardType = KeyboardType.Number
-                                            ),
-                                            singleLine = true
+                                    } else if (draft.name.isNotBlank()) {
+                                        viewModel.addItemToReceipt(
+                                            receiptId = receiptId,
+                                            name = draft.name,
+                                            price = draft.price.toDoubleOrNull() ?: 0.0,
+                                            quantity = draft.quantity.toIntOrNull() ?: 1
                                         )
                                     }
                                 }
-                            }
-                        }
-                        // Add this right after the items(itemDrafts...) block, still inside the else (isEditing) branch:
-                        item {
-                            OutlinedButton(
-                                onClick = {
-                                    itemDrafts.add(
-                                        ItemDraft(
-                                            id = -System.currentTimeMillis(), // temp negative ID for new items
-                                            initialName = "",
-                                            initialPrice = "",
-                                            initialQuantity = "1"
-                                        )
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    imageVector = androidx.compose.material.icons.Icons.Default.Add,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                                Text("Add item")
-                            }
+                                isEditing = false
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Terra500,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Save changes", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
-                if (!isEditing) {
-                    item {
-                        HorizontalDivider()
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Analysis of this purchase",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Open when your're ready - includes impulse signal and items reactions.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = { showAnalysisSheet = true },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        {  Text("Open analysis") }
 
+                if (!isEditing) {
+                    Text(
+                        r.storeName ?: "Unknown store",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text(
+                        text = "${r.purchaseDate ?: "—"}${r.purchaseTime?.let { "  ·  $it" } ?: ""}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 24.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (!isEditing) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.cardElevation(0.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                "Purchase summary",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            SummaryRow(
+                                "Subtotal",
+                                r.subtotal?.let { "£${"%.2f".format(it)}" } ?: "—")
+                            SummaryRow("Tax", r.tax?.let { "£${"%.2f".format(it)}" } ?: "—")
+                            r.shipping?.let {
+                                SummaryRow("Shipping", "£${"%.2f".format(it)}")
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Total",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    r.totalAmount?.let { "£${"%.2f".format(it)}" } ?: "—",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
                 }
-                item { Spacer(Modifier.height(24.dp)) }
+                // ── Regret + sentiment row ──
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Regret card
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = when {
+                                    r.regretScore == null -> MaterialTheme.colorScheme.surface
+                                    r.regretScore!! >= 7 -> Error100
+                                    r.regretScore!! >= 4 -> Warning100
+                                    else -> Success100
+                                }
+                            ),
+                            elevation = CardDefaults.cardElevation(0.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    "Regret",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    r.regretScore?.let { "$it/10" } ?: "Not rated",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Black,
+                                    color = when {
+                                        r.regretScore == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        r.regretScore!! >= 7 -> Error700
+                                        r.regretScore!! >= 4 -> Warning700
+                                        else -> Success700
+                                    }
+                                )
+                            }
+                        }
+                        // Sentiment card
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.cardElevation(0.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    "Sentiment",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    r.userSentimentLabel ?: "Not rated",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Black,
+                                    color = when (r.userSentimentLabel) {
+                                        "GOOD" -> Success700
+                                        "BAD" -> Error700
+                                        "MIXED" -> Warning700
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                // ── Items header ──
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Items",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            "${items.size} item${if (items.size != 1) "s" else ""}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                // ── Items list ──
+                if (items.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No items parsed for this receipt",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(items, key = { it.id }) { item ->
+                        ItemViewCard(item = item)
+                    }
+                }
+                // ── Analysis button ──
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Teal50
+                        ),
+                        elevation = CardDefaults.cardElevation(0.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                "Purchase analysis",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Teal700
+                            )
+                            Text(
+                                "See your impulse signals and react to each item when you're ready.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Button(
+                                onClick = { showAnalysisSheet = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Teal700,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("Open analysis", fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+            } else {
+                // ── EDIT MODE ──
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                "Edit receipt details",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            OutlinedTextField(
+                                value = editStoreName,
+                                onValueChange = { editStoreName = it },
+                                label = { Text("Store name") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            OutlinedTextField(
+                                value = editDate,
+                                onValueChange = { editDate = it },
+                                label = { Text("Purchase date") },
+                                placeholder = { Text("e.g. 28/11/2025") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            OutlinedTextField(
+                                value = editTime,
+                                onValueChange = { input ->
+                                    if (input.length <= 5 && input.all { c ->
+                                            c.isDigit() || c == ':'
+                                        }) editTime = input
+                                },
+                                label = { Text("Purchase time") },
+                                placeholder = { Text("e.g. 14:30") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            OutlinedTextField(
+                                value = editTotal,
+                                onValueChange = { editTotal = it },
+                                label = { Text("Total (£)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                        }
+                    }
+                }
+                item {
+                    Text(
+                        "Items",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                items(itemDrafts, key = { it.id }) { draft ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = draft.name,
+                                onValueChange = { draft.name = it },
+                                label = { Text("Item name") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = draft.price,
+                                    onValueChange = { draft.price = it },
+                                    label = { Text("Price (£)") },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                OutlinedTextField(
+                                    value = draft.quantity,
+                                    onValueChange = { draft.quantity = it },
+                                    label = { Text("Qty") },
+                                    modifier = Modifier.width(80.dp),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
+                    OutlinedButton(
+                        onClick = {
+                            itemDrafts.add(
+                                ItemDraft(
+                                    id = -System.currentTimeMillis(),
+                                    initialName = "",
+                                    initialPrice = "",
+                                    initialQuantity = "1"
+                                )
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Add missing item", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, value: String){
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun ItemViewCard(item: ItemEntity) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    item.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    item.category,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "£${"%.2f".format(item.price)}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    "x${item.quantity}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -421,7 +737,7 @@ private fun AnalysisSheetContent(
     receiptImpulseLabel: String?,
     receiptImpulseScore: Int?,
     impulseReasonsJson: String?,
-    items: List<com.example.impulsepurchaserecoverykit.database.entities.ItemEntity>,
+    items: List<ItemEntity>,
     onClose: () -> Unit
 ) {
     val reasons = remember(impulseReasonsJson) {
@@ -430,7 +746,7 @@ private fun AnalysisSheetContent(
 
     val reactions by viewModel.getItemReactionsForReceipt(receiptId)
         .collectAsState(initial = emptyList())
-    val savedMap = remember(reactions){
+    val savedMap = remember(reactions) {
         reactions.associate { it.itemId to it.reaction }
     }
 
@@ -443,19 +759,22 @@ private fun AnalysisSheetContent(
         draftMap.putAll(savedMap)
     }
 
-    val hasUnsavedChanges by remember(savedMap){
+    val hasUnsavedChanges by remember(savedMap) {
         derivedStateOf { savedMap != draftMap.toMap() }
     }
+    val positives = draftMap.values.count { it == 1 }
+    val neutrals = draftMap.values.count { it == 0 }
+    val negatives = draftMap.values.count { it == -1 }
 
-    val listState = rememberLazyListState()
-
-    val reactionMap = remember(reactions) {
-        reactions.associateBy { it.itemId }
+    val totalRated = positives + neutrals + negatives
+    val moodLabel = when {
+        totalRated == 0 -> "Not rated yet"
+        positives >= negatives + 2 -> "Good shop 🙂"
+        negatives >= positives + 2 -> "Regretful shop 🙁"
+        else -> "Mixed feelings 😐"
     }
 
-
     LazyColumn(
-        state = listState,
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
@@ -464,96 +783,160 @@ private fun AnalysisSheetContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("Purchase analysis", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Purchase analysis",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
-
         item {
-            ElevatedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        "Impulse signal: ${receiptImpulseLabel ?: "—"} (${receiptImpulseScore ?: 0}/100)",
-                        style = MaterialTheme.typography.titleMedium
-                    )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = when (receiptImpulseLabel?.uppercase()) {
+                        "HIGH" -> Error100
+                        "MEDIUM" -> Warning100
+                        else -> Success100
+                    }
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Impulse signal",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "${receiptImpulseLabel ?: "—"}  ${receiptImpulseScore ?: 0}/100",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = when (receiptImpulseLabel?.uppercase()) {
+                                "HIGH" -> Error700
+                                "MEDIUM" -> Warning700
+                                else -> Success700
+                            }
+                        )
+                    }
                     if (reasons.isNotEmpty()) {
-                        Text("Why:", style = MaterialTheme.typography.titleSmall)
-                        reasons.forEach { r -> Text("• $r") }
-                    } else {
-                        Text("No reasons available.")
+                        reasons.forEach { reason ->
+                            Text(
+                                "• $reason",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
         }
-        val positives = draftMap.values.count {it == 1}
-        val neutrals = draftMap.values.count {it == 0}
-        val negatives = draftMap.values.count {it == -1}
 
-        val totalRated = positives + neutrals + negatives
-        val moodLabel = when {
-            totalRated == 0 -> "Not rated yet"
-            positives >= negatives + 2 -> "Good shop 🙂"
-            negatives >= positives + 2 -> "Regretful shop 🙁"
-            else -> "Mixed feelings 😐"
-        }
+        // Mood summary
         item {
-            ElevatedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)){
-                    Text("Your feelings so far", style = MaterialTheme.typography.titleMedium)
-                    Text(moodLabel)
-                    Text("🙂 $positives   😐 $neutrals   🙁 $negatives")
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        moodLabel,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(
+                            "Happy 🙂$positives",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Success700
+                        )
+                        Text(
+                            "Neutral 😐$neutrals",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "Regret 🙁$negatives",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Error700
+                        )
+                    }
                 }
             }
         }
+
         item {
-            Text("How did each item feel?", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "How did each item feel?",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
+
         if (items.isEmpty()) {
-            item{Text("No items found.")}
+            item { Text("No items found.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         } else {
-            items(items, key = {it.id}) { item ->
+            items(items, key = { it.id }) { item ->
                 ItemReactionRow(
                     itemName = item.name,
                     selectedReaction = draftMap[item.id],
-                    onReact = { newReaction ->
-                        draftMap[item.id] = newReaction
-                    }
+                    onReact = { draftMap[item.id] = it }
                 )
             }
         }
-        item {
-            OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
-                Text("Close")
-            }
-            Spacer(Modifier.height(12.dp))
-        }
+
         item {
             Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ){
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 OutlinedButton(
-                    onClick = {
-                        draftMap.clear()
-                        draftMap.putAll(savedMap)
-                    },
+                    onClick = { draftMap.clear(); draftMap.putAll(savedMap) },
                     modifier = Modifier.weight(1f),
-                    enabled = hasUnsavedChanges
-                ) {
-                    Text("Discard")
-                }
+                    enabled = hasUnsavedChanges,
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Discard") }
+
                 Button(
-                    onClick = {
-                        viewModel.saveItemReactions(receiptId, draftMap.toMap())
-                    },
+                    onClick = { viewModel.saveItemReactions(receiptId, draftMap.toMap()) },
                     modifier = Modifier.weight(1f),
-                    enabled = hasUnsavedChanges
-                )
-                {
-                    Text("Save changes")
-                }
+                    enabled = hasUnsavedChanges,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Teal700,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Save", fontWeight = FontWeight.Bold) }
             }
+        }
+
+        item {
+            OutlinedButton(
+                onClick = onClose,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp)
+            ) { Text("Close") }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
+
 
 @Composable
 private fun ItemReactionRow(
@@ -561,55 +944,68 @@ private fun ItemReactionRow(
         selectedReaction: Int?,
         onReact: (Int) -> Unit
     ) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
         Row(
-            Modifier
+            modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(itemName, style = MaterialTheme.typography.titleMedium)
-                Text("Tap a face to react", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    itemName,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    "Tap a face to react",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                // 🙂 positive = 1
-                if (selectedReaction == 1) {
-                    FilledIconButton(onClick = { onReact(1) }) {
-                        Icon(Icons.Filled.SentimentSatisfied, contentDescription = "Positive")
-                    }
-                } else {
-                    IconButton(onClick = { onReact(1) }) {
-                        Icon(Icons.Filled.SentimentSatisfied, contentDescription = "Positive")
-                    }
-                }
-
-                // 😐 neutral = 0
-                if (selectedReaction == 0) {
-                    FilledIconButton(onClick = { onReact(0) }) {
-                        Icon(Icons.Filled.SentimentNeutral, contentDescription = "Neutral")
-                    }
-                } else {
-                    IconButton(onClick = { onReact(0) }) {
-                        Icon(Icons.Filled.SentimentNeutral, contentDescription = "Neutral")
-                    }
-                }
-
-                // 🙁 negative = -1
-                if (selectedReaction == -1) {
-                    FilledIconButton(onClick = { onReact(-1) }) {
-                        Icon(
-                            Icons.Filled.SentimentDissatisfied,
-                            contentDescription = "Negative"
-                        )
-                    }
-                } else {
-                    IconButton(onClick = { onReact(-1) }) {
-                        Icon(
-                            Icons.Filled.SentimentDissatisfied,
-                            contentDescription = "Negative"
-                        )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(1 to Icons.Filled.SentimentSatisfied,
+                    0 to Icons.Filled.SentimentNeutral,
+                    -1 to Icons.Filled.SentimentDissatisfied
+                ).forEach { (value, icon) ->
+                    if (selectedReaction == value) {
+                        FilledIconButton(
+                            onClick = { onReact(value) },
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = when (value) {
+                                    1 -> Success100
+                                    -1 -> Error100
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
+                                }
+                            )
+                        ) {
+                            Icon(
+                                icon,
+                                contentDescription = null,
+                                tint = when (value) {
+                                    1 -> Success700
+                                    -1 -> Error700
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = { onReact(value) }) {
+                            Icon(
+                                icon,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
                     }
                 }
             }
