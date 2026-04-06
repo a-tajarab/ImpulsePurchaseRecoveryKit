@@ -286,5 +286,9 @@ class ReceiptRepository(private val database: AppDatabase) {
         )
         itemDao.insertItem(item)
     }
+    fun getItemsForMonth(year: Int, month: Int): Flow<List<ItemEntity>> {
+        return receiptDao.getItemsForMonth(year, month)
+    }
+
 }
 

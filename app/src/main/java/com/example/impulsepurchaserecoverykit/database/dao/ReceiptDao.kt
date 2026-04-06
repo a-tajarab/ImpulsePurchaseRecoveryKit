@@ -2,6 +2,7 @@ package com.example.impulsepurchaserecoverykit.database.dao
 
 import androidx.room.*
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
+import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.models.WeeklySpend
 import com.example.impulsepurchaserecoverykit.database.models.WeeklyRegret
 import kotlinx.coroutines.flow.Flow
@@ -49,10 +50,19 @@ interface ReceiptDao {
     LIMIT :limit
 """)
     fun getTopRegretReceipts(limit: Int): Flow<List<ReceiptEntity>>
-
     @Query("""
-    SELECT (createdAt / 604800000) * 604800000 AS weekStart,
-           SUM(COALESCE(totalAmount, 0)) AS total
+    SELECT 
+    COALESCE(
+        CASE
+            WHEN purchaseDate LIKE '__/__/____' 
+                THEN CAST(SUBSTR(purchaseDate,7,4) || SUBSTR(purchaseDate,4,2) AS INTEGER)
+                WHEN purchaseDate LIKE '__/__ /____'
+                THEN CAST(SUBSTR(purchaseDate,8,4) || SUBSTR(purchaseDate,4,2) AS INTEGER)
+                ELSE createdAt / 2592000000
+            END,
+            createdAt / 2592000000
+        ) AS weekStart,
+        SUM(COALESCE(totalAmount, 0)) AS total
     FROM receipts
     GROUP BY weekStart
     ORDER BY weekStart ASC
@@ -100,5 +110,18 @@ interface ReceiptDao {
         totalAmount: Double?,
         updatedAt: Long = System.currentTimeMillis()
     )
+
+    @Query("""
+    SELECT i.* FROM items i
+    INNER JOIN receipts r ON i.receiptId = r.id
+    WHERE 
+        (r.purchaseDate LIKE '__/__/____' 
+         AND CAST(SUBSTR(r.purchaseDate,4,2) AS INTEGER) = :month
+         AND CAST(SUBSTR(r.purchaseDate,7,4) AS INTEGER) = :year)
+    OR
+        (r.purchaseDate LIKE '__ ___ ____'
+         AND CAST(SUBSTR(r.purchaseDate,8,4) AS INTEGER) = :year)
+""")
+    fun getItemsForMonth(year: Int, month: Int): Flow<List<ItemEntity>>
 
 }

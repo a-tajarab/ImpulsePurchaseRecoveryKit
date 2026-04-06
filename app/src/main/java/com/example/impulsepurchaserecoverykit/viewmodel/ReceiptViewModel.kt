@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
 import com.example.impulsepurchaserecoverykit.database.AppDatabase
 import com.example.impulsepurchaserecoverykit.database.ReceiptRepository
+import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
 import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
 import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
@@ -213,4 +214,8 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
             repository.addItemToReceipt(receiptId, name, price, quantity)
         }
     }
+
+    fun getItemsForMonth(year: Int, month: Int): Flow<List<ItemEntity>> =
+        repository.getItemsForMonth(year, month)
+
 }
