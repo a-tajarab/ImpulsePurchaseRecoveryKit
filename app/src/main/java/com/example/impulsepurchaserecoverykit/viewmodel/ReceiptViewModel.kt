@@ -218,4 +218,7 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
     fun getItemsForMonth(year: Int, month: Int): Flow<List<ItemEntity>> =
         repository.getItemsForMonth(year, month)
 
+    fun getMonthlySpend(year: Int, month: Int): Flow<Double?> =
+        repository.getMonthlySpend(year, month)
+
 }

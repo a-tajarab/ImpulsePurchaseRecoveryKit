@@ -290,5 +290,7 @@ class ReceiptRepository(private val database: AppDatabase) {
         return receiptDao.getItemsForMonth(year, month)
     }
 
+    fun getMonthlySpend(year: Int, month: Int): Flow<Double?> =
+        receiptDao.getMonthlySpend(year, month)
 }
 

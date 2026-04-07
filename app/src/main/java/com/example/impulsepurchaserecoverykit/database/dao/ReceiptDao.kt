@@ -124,4 +124,18 @@ interface ReceiptDao {
 """)
     fun getItemsForMonth(year: Int, month: Int): Flow<List<ItemEntity>>
 
+    // In ReceiptDao.kt — add this:
+    @Query("""
+    SELECT SUM(COALESCE(totalAmount, 0))
+    FROM receipts
+    WHERE 
+        (purchaseDate LIKE '__/__/____'
+         AND CAST(SUBSTR(purchaseDate, 4, 2) AS INTEGER) = :month
+         AND CAST(SUBSTR(purchaseDate, 7, 4) AS INTEGER) = :year)
+    OR
+        (purchaseDate LIKE '__ ___ ____'
+         AND CAST(SUBSTR(purchaseDate, 8, 4) AS INTEGER) = :year)
+""")
+    fun getMonthlySpend(year: Int, month: Int): Flow<Double?>
+
 }
