@@ -37,6 +37,13 @@ fun HomeScreen(
     val avgRegret by viewModel.averageRegret.collectAsState(initial = null)
     val receiptCount by viewModel.receiptCount.collectAsState(initial = 0)
 
+    val now = remember { java.util.Calendar.getInstance() }
+    val currentMonth = now.get(java.util.Calendar.MONTH) + 1
+    val currentYear = now.get(java.util.Calendar.YEAR)
+    val monthlySpend by viewModel.getMonthlySpend(currentYear, currentMonth)
+        .collectAsState(initial = null)
+
+
 
     LazyColumn(
         modifier = Modifier
@@ -78,8 +85,8 @@ fun HomeScreen(
         ) {
                  StatCard(
                      modifier = Modifier.weight(1f),
-                     label = "Total spent",
-                     value = totalSpend?.let { "£${"%.2f".format(it)}" } ?: "£0.00",
+                     label = "This month",
+                     value = monthlySpend?.let { "£${"%.2f".format(it)}" } ?: "£0.00",
                      valueColor = MaterialTheme.colorScheme.primary
                  )
                  StatCard(
