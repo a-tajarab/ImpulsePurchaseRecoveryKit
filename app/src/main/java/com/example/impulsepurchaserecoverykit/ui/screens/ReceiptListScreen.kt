@@ -139,6 +139,15 @@ fun ReceiptListScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                 )
+                val listTotal = filteredReceipts.sumOf { it.totalAmount ?: 0.0 }
+                if (listTotal > 0) {
+                    Text(
+                        text = "Total: £${"%.2f".format(listTotal)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                    )
+                }
             }
         }
 
