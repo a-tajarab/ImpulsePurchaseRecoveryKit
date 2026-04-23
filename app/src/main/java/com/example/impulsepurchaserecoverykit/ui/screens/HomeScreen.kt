@@ -25,6 +25,13 @@ import androidx.compose.ui.unit.sp
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
 import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
 import com.example.impulsepurchaserecoverykit.ui.theme.*
+
+/**
+ * HomeScreen — the main landing screen of the application.
+ * Displays the teal header, three stat cards, scan button,
+ * insight card, and the five most recent receipts.
+ */
+
 @Composable
 fun HomeScreen(
     paddingValues: PaddingValues,
@@ -37,6 +44,7 @@ fun HomeScreen(
     val avgRegret by viewModel.averageRegret.collectAsState(initial = null)
     val receiptCount by viewModel.receiptCount.collectAsState(initial = 0)
 
+    // Current month and year used to calculate This Month spending
     val now = remember { java.util.Calendar.getInstance() }
     val currentMonth = now.get(java.util.Calendar.MONTH) + 1
     val currentYear = now.get(java.util.Calendar.YEAR)
@@ -54,6 +62,7 @@ fun HomeScreen(
             bottom = paddingValues.calculateBottomPadding() + 16.dp
         )
     ) {
+        // Teal header with app title
         item {
             Box(
                 modifier = Modifier
@@ -76,6 +85,7 @@ fun HomeScreen(
             }
         }
     }
+        // Three stat cards — This Month, Receipts, Avg Regret
     item {
         Row(
             modifier = Modifier
@@ -136,7 +146,7 @@ fun HomeScreen(
         }
     }
 
-    // ── Insight card ──
+    // ── Insight card ── only shown when average regret data exists
     item {
         avgRegret?.let { regret ->
             InsightCard(
@@ -198,6 +208,10 @@ fun HomeScreen(
 }
 }
 
+/**
+ * Small summary card displaying a single statistic.
+ * Used for This Month, Receipts, and Avg Regret on the Home screen.
+ */
 @Composable
 private fun StatCard(
     modifier: Modifier = Modifier,
@@ -235,7 +249,13 @@ private fun StatCard(
     }
 }
 
-
+/**
+ * Contextual insight card shown below the scan button.
+ * Colour and message change based on the user's average regret score:
+ * - Score 7+ = high regret warning (teal)
+ * - Score 4-6 = medium regret caution (amber)
+ * - Score below 4 = positive reinforcement (green)
+ */
 @Composable
 private fun InsightCard(
     modifier: Modifier = Modifier,
@@ -293,6 +313,12 @@ private fun InsightCard(
     }
 }
 
+/**
+ * Individual receipt card shown in the recent purchases list.
+ * Displays store initial circle, store name, date, total amount,
+ * impulse label badge, regret score badge, and an impulse score
+ * progress bar at the bottom of the card.
+ */
 @Composable
 private fun HomeReceiptCard(
     receipt: ReceiptEntity,
@@ -397,6 +423,10 @@ private fun HomeReceiptCard(
     }
 }
 
+/**
+ * Small coloured badge showing the impulse risk label — HIGH, MEDIUM, or LOW.
+ * Colour coded red for HIGH, amber for MEDIUM, and green for LOW.
+ */
 @Composable
 private fun ImpulseBadge(label: String) {
     val (bg, fg) = when (label.uppercase()) {
@@ -420,6 +450,10 @@ private fun ImpulseBadge(label: String) {
     }
 }
 
+/**
+ * Small coloured badge showing the user's regret score out of 10.
+ * Colour coded teal for high regret, amber for medium, and green for low.
+ */
 @Composable
 private fun RegretBadge(score: Int) {
     val bg = when {
@@ -448,6 +482,10 @@ private fun RegretBadge(score: Int) {
     }
 }
 
+/**
+ * Small coloured badge showing the user's regret score out of 10.
+ * Colour coded teal for high regret, amber for medium, and green for low.
+ */
 @Composable
 private fun EmptyStateCard(modifier: Modifier = Modifier) {
     Card(

@@ -259,7 +259,9 @@ class ReceiptRepository(private val database: AppDatabase) {
         storeName: String?,
         purchaseDate: String?,
         purchaseTime: String?,
-        totalAmount: Double?
+        totalAmount: Double?,
+        subtotal: Double?,
+        tax: Double?
     ) {
         receiptDao.updateReceiptDetails(
             receiptId = receiptId,
@@ -267,7 +269,9 @@ class ReceiptRepository(private val database: AppDatabase) {
             purchaseDate = purchaseDate,
             purchaseTime = purchaseTime,
             totalAmount = totalAmount,
-            updatedAt = System.currentTimeMillis()
+            updatedAt = System.currentTimeMillis(),
+            subtotal = subtotal,
+            tax = tax
         )
     }
 

@@ -31,7 +31,12 @@ import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
 import com.example.impulsepurchaserecoverykit.ui.theme.*
 import org.json.JSONArray
 
-
+/**
+ * ItemDraft holds the editable state for a single item during edit mode.
+ * Uses mutableStateOf delegation so Compose tracks changes and triggers
+ * recomposition when the user types in the text fields.
+ * This fixes the bug where plain var fields caused typing to not register.
+ */
 class ItemDraft(
     val id: Long,
     initialName: String,      // ← renamed to "initial..."
@@ -42,6 +47,17 @@ class ItemDraft(
     var price by mutableStateOf(initialPrice)
     var quantity by mutableStateOf(initialQuantity)
 }
+
+/**
+ * ReceiptDetailScreen displays the full details of a single scanned receipt.
+ *
+ * Two modes:
+ * - View mode: shows purchase summary, regret/sentiment cards, items list, and analysis button
+ * - Edit mode: allows the user to correct store name, date, time, total, and individual items
+ *
+ * Also contains a delete confirmation dialog and a modal bottom sheet
+ * for the purchase analysis and item reaction features.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReceiptDetailScreen(
@@ -66,6 +82,8 @@ fun ReceiptDetailScreen(
     var editDate by remember { mutableStateOf("") }
     var editTime by remember { mutableStateOf("") }
     var editTotal by remember { mutableStateOf("") }
+    var editSubtotal by remember { mutableStateOf("") }
+    var editTax by remember { mutableStateOf("") }
 
     val itemDrafts = remember { mutableStateListOf<ItemDraft>() }
 
@@ -89,6 +107,8 @@ fun ReceiptDetailScreen(
             editDate = r.purchaseDate ?: ""
             editTime = r.purchaseTime ?: ""
             editTotal = r.totalAmount?.toString() ?: ""
+            editSubtotal = r.subtotal?.toString() ?: ""
+            editTax = r.tax?.toString() ?: ""
             itemDrafts.clear()
             itemDrafts.addAll(items.map { item ->
                 ItemDraft(
@@ -100,7 +120,7 @@ fun ReceiptDetailScreen(
             })
         }
     }
-
+    // Delete confirmation dialog
     if (showDeleteDialog){
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -145,8 +165,7 @@ fun ReceiptDetailScreen(
             }
         )
     }
-
-
+    //Purchase analaysis bottom sheet
     if (showAnalysisSheet) {
         ModalBottomSheet(
             onDismissRequest = { showAnalysisSheet = false },
@@ -169,7 +188,7 @@ fun ReceiptDetailScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-    ) {
+    ) { // Teal header with store name, date, and action buttons
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -186,6 +205,7 @@ fun ReceiptDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    // Back / Cancel Button
                     OutlinedButton(
                         onClick = {
                             if (isEditing) isEditing = false else onBack()
@@ -205,6 +225,7 @@ fun ReceiptDetailScreen(
                         )
                     }
                     if (!isEditing) {
+                        //View mode action buttons
                         Button(
                             onClick = onSetRegret,
                             modifier = Modifier.weight(1f),
@@ -234,6 +255,7 @@ fun ReceiptDetailScreen(
                             )
                         }
                     } else {
+                        // Save button - persists all edits to the database
                         Button(
                             onClick = {
                                 viewModel.updateReceiptDetails(
@@ -241,7 +263,9 @@ fun ReceiptDetailScreen(
                                     storeName = editStoreName.ifBlank { null },
                                     purchaseDate = editDate.ifBlank { null },
                                     purchaseTime = editTime.ifBlank { null },
-                                    totalAmount = editTotal.toDoubleOrNull()
+                                    totalAmount = editTotal.toDoubleOrNull(),
+                                    subtotal = editSubtotal.toDoubleOrNull(),
+                                    tax = editTax.toDoubleOrNull()
                                 )
                                 // Save item edits
                                 itemDrafts.forEach { draft ->
@@ -274,7 +298,7 @@ fun ReceiptDetailScreen(
                         }
                     }
                 }
-
+                // Store name and date shown in view mode only
                 if (!isEditing) {
                     Text(
                         r.storeName ?: "Unknown store",
@@ -301,6 +325,7 @@ fun ReceiptDetailScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (!isEditing) {
+                // Purchase summary card - subtotal, tax, shipping, total
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -576,6 +601,24 @@ fun ReceiptDetailScreen(
                                 singleLine = true,
                                 shape = RoundedCornerShape(10.dp)
                             )
+                            OutlinedTextField(
+                                value = editSubtotal,
+                                onValueChange = { editSubtotal = it },
+                                label = { Text("Subtotal (£)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            OutlinedTextField(
+                                value = editTax,
+                                onValueChange = { editTax = it },
+                                label = { Text("Tax (£)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp)
+                            )
                         }
                     }
                 }
@@ -631,6 +674,7 @@ fun ReceiptDetailScreen(
                         }
                     }
                 }
+                //add missing item button
                 item {
                     OutlinedButton(
                         onClick = {
@@ -663,6 +707,10 @@ fun ReceiptDetailScreen(
     }
 }
 
+/**
+ * Single row showing a label and value side by side.
+ * Used in the purchase summary card for subtotal, tax, and shipping.
+ */
 @Composable
 private fun SummaryRow(label: String, value: String){
     Row(
@@ -683,6 +731,10 @@ private fun SummaryRow(label: String, value: String){
     }
 }
 
+/**
+ * Read-only item card showing item name, category, price, and quantity.
+ * Displayed in view mode only — replaced by editable drafts in edit mode.
+ */
 @Composable
 private fun ItemViewCard(item: ItemEntity) {
     Card(
@@ -730,6 +782,12 @@ private fun ItemViewCard(item: ItemEntity) {
     }
 }
 
+/**
+ * Bottom sheet content showing the purchase analysis for a receipt.
+ * Displays the impulse signal score and reasons, overall mood summary,
+ * and item-level reaction buttons (happy, neutral, regret).
+ * Users can save or discard their item reactions from this sheet.
+ */
 @Composable
 private fun AnalysisSheetContent(
     receiptId: Long,
@@ -746,10 +804,11 @@ private fun AnalysisSheetContent(
 
     val reactions by viewModel.getItemReactionsForReceipt(receiptId)
         .collectAsState(initial = emptyList())
+    //savedMap holds the persisted reactions from the databse
     val savedMap = remember(reactions) {
         reactions.associate { it.itemId to it.reaction }
     }
-
+    // draftMap holds unsaved changes made in this session
     val draftMap = remember(receiptId) {
         mutableStateMapOf<Long, Int>()
     }
@@ -762,6 +821,7 @@ private fun AnalysisSheetContent(
     val hasUnsavedChanges by remember(savedMap) {
         derivedStateOf { savedMap != draftMap.toMap() }
     }
+    //Calculate mood summary from current draft reactions
     val positives = draftMap.values.count { it == 1 }
     val neutrals = draftMap.values.count { it == 0 }
     val negatives = draftMap.values.count { it == -1 }
@@ -790,6 +850,7 @@ private fun AnalysisSheetContent(
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
+        // Impulse signal card
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -827,6 +888,7 @@ private fun AnalysisSheetContent(
                             }
                         )
                     }
+                    // Reasons list from impulse scoring engine
                     if (reasons.isNotEmpty()) {
                         reasons.forEach { reason ->
                             Text(
@@ -879,7 +941,7 @@ private fun AnalysisSheetContent(
                 }
             }
         }
-
+        //Save and discard buttons
         item {
             Text(
                 "How did each item feel?",
@@ -937,7 +999,11 @@ private fun AnalysisSheetContent(
     }
 }
 
-
+/**
+ * Single item row with three emoji reaction buttons — happy, neutral, regret.
+ * The selected reaction is highlighted with a filled background.
+ * Unselected reactions appear at reduced opacity.
+ */
 @Composable
 private fun ItemReactionRow(
         itemName: String,
@@ -1013,6 +1079,10 @@ private fun ItemReactionRow(
     }
 }
 
+/**
+ * Parses the impulse reasons JSON array string into a list of reason strings.
+ * Returns an empty list if the JSON is null, blank, or malformed.
+ */
 private fun parseReasons(json: String?): List<String> {
     if (json.isNullOrBlank()) return emptyList()
     return try {

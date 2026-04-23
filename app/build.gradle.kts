@@ -26,6 +26,9 @@ android {
             "\"${localProps.getProperty("ANTHROPIC_API_KEY") ?: ""}\""
         )
     }
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
 
     buildTypes {
         release {

@@ -194,11 +194,19 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
         storeName: String?,
         purchaseDate: String?,
         purchaseTime: String?,
-        totalAmount: Double?
+        totalAmount: Double?,
+        subtotal:  Double?,
+        tax: Double?
     ) {
         viewModelScope.launch {
             repository.updateReceiptDetails(
-                receiptId, storeName, purchaseDate, purchaseTime, totalAmount
+                receiptId = receiptId,
+                storeName = storeName,
+                purchaseDate = purchaseDate,
+                purchaseTime = purchaseTime,
+                totalAmount = totalAmount,
+                subtotal = subtotal,
+                tax = tax
             )
         }
     }

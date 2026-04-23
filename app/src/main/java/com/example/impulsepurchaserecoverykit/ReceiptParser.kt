@@ -3,8 +3,25 @@ package com.example.impulsepurchaserecoverykit
 import android.util.Log
 import java.util.regex.Pattern
 
+/***
+ * The ReceiptParser is responsible for extracting structured data from the raw OCR text
+ *
+ * Parser handles 3 receipt formats:
+ * - 1: Item name and price on the same line with a currency symbol
+ * - 2: Item name and price on the same line without a currency symbol
+ * - 3: Split column where item names and prices appear in seperate blocks
+ *
+ * The parser can recognise the store name, extract the date and time,
+ * total, subtotal, tax and shipping and it can also group the item into categories
+ *
+ */
 class ReceiptParser {
 
+    /**
+     * This is the main entry point for parsing a receipt.
+     * It controls all the extraction functions and returns a complete
+     * ParsedReceipt object
+     */
     fun parseReceipt(rawText: String): ParsedReceipt {
         Log.d("PARSER", "Starting to parse receipt...")
         val storeName = extractStoreName(rawText)
@@ -34,6 +51,18 @@ class ReceiptParser {
     // ─────────────────────────────────────────────────────────────
     // STORE NAME
     // ─────────────────────────────────────────────────────────────
+    /**
+     * This function attempts to extract the store name from raw OCR text
+     *
+     * In two stages:
+     *  - Searches each line of the OCR output against the knownStores database
+     *    If a match is found and the line does not look like an address or noise
+     *    then the matched line is cleaned and return as the store name
+     *  - If no match is found then it fallbacks to the second method where
+     *    the position and structural rules are used to find the most likely store name,
+     *    so it looks through lines that contain currency symbols, addresses, phone numbers,
+     *    dates, noise, product names or person names rather than avoiding them completely
+     */
 
     private fun extractStoreName(text: String): String? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotBlank() }
@@ -76,6 +105,16 @@ class ReceiptParser {
         return fallback?.let { cleanStoreName(it) }
     }
 
+    /**
+     * Cleans and standardises a raw store name string that is extracted from the OCR text
+     *
+     * Operations it does:
+     * - Converts the string to lowercase
+     * - Removes web domain prefixes such as www.
+     * - Strips common domain suffixes
+     * - Removes forward slashes and punctuation
+     * - Return the title case with each word capitalised
+     */
     private fun cleanStoreName(name: String): String {
         var cleaned = name.lowercase().trim()
         cleaned = cleaned.removePrefix("www.")
@@ -95,6 +134,17 @@ class ReceiptParser {
     // ITEMS — detects format automatically
     // ─────────────────────────────────────────────────────────────
 
+    /**
+     * Automatically detects the receipt format and delegates item extraction
+     * to the appropriate parser function
+     *
+     * Format detection works by counting:
+     * - inlineCount: lines that contain both a recognisable item name and price
+     * - totalMoneyLines: total number of lines containing any money value
+     *
+     * If the inlineCount has at least half of totalMoneyLines, the receipt is set
+     * as inline format. Otherwise it is set as split column
+     */
     private fun extractItems(text: String, storeName: String?): List<ParsedItem> {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
@@ -112,14 +162,29 @@ class ReceiptParser {
         val totalMoneyLines = lines.count { moneyRegex.containsMatchIn(it) }
         val isInlineFormat = inlineCount >= (totalMoneyLines / 2)
 
-        Log.d("PARSER", "Format detect — inline=$inlineCount, moneyLines=$totalMoneyLines, isInline=$isInlineFormat")
+        Log.d("PARSER", "Format detect — inline=$inlineCount, moneyLines=$totalMoneyLines, " +
+                "isInline=$isInlineFormat")
 
         return if (isInlineFormat) {
             extractItemsInline(lines, storeName)
         } else {
-            extractItemsSplitColumn(lines, storeName, text, total, subtotal, tax)
+            extractItemsSplitColumn(lines, storeName, text, total,
+                subtotal, tax)
         }
     }
+
+    /**
+     * Extracts items from receipts where each item name and price appear on the same line.
+     * This function handles Format 1 with symbol and Format 2 with no currency symbol.
+     *
+     * Uses two regex patterns:
+     *  - patternWithNoPound: matches lines that contain a £ or $ symbol followed by a price
+     *  - patternNoSymbol: matches lines where a name is followed by two or more spaces
+     *    and then a decimal number
+     *
+     * Lines that contain summary words such as 'total', 'subtotal', 'tax', and 'payment'
+     * method names are excluded from item extraction.
+     */
 
     // Format 1 & 2: item and price on the same line
     private fun extractItemsInline(
@@ -169,6 +234,16 @@ class ReceiptParser {
         return items
     }
 
+    /**
+     * Extracts items from receipts where item names and prices appear in separate blocks
+     * This handles Format 3 which is the typical online order confirmation receipts
+     *
+     * By collecting all name candidates and all prices in order, the first N prices
+     * correspond to the first N item names, where N is the number of the name candidates
+     *
+     * The name candidates are identified by taking out all the lines that match the hardSkip
+     * keywords look like Address, phone numbers, dates, or prices
+     */
     // Format 3: names block then prices block (split column online receipts)
     private fun extractItemsSplitColumn(
         lines: List<String>,
@@ -234,8 +309,8 @@ class ReceiptParser {
         }
 
         // ── KEY INSIGHT: prices are ordered as [item1, item2, ..., subtotal, tax, total]
-        // We know how many items there are = nameCandidates.size
         // So item prices = first N prices from allPricesInOrder
+        // where N = number of name candidates
         // ──
         val itemCount = nameCandidates.size
         val itemPrices = allPricesInOrder.take(itemCount)
@@ -254,6 +329,14 @@ class ReceiptParser {
         return items
     }
 
+    /**
+     * List of common product keywords used to identify item name candidates
+     * in split column receipts that appear after a shipping address block
+     *
+     * Lines contains keywords that are treated as product names even when they
+     * appear after a shipping address section
+     */
+
     private val productKeywords = listOf(
         "hoodie", "shirt", "t-shirt", "tee", "blouse", "jumper", "sweater",
         "jacket", "coat", "parka", "blazer", "cardigan",
@@ -270,6 +353,13 @@ class ReceiptParser {
         "pack", "set", "kit", "bundle"
     )
 
+    /**
+     * Validates whether an extracted name and price is actually an item
+     * It rejects where the price is null, out of range, or the name contains
+     * no letters, looks like a phone number or reference or if it is a stop keyword
+     * by the categorisation engine
+     */
+
     private fun isValidItem(name: String, price: Double?): Boolean {
         if (price == null || price !in 0.01..9999.99) return false
         if (!name.any { it.isLetter() }) return false
@@ -284,12 +374,27 @@ class ReceiptParser {
     // HELPERS
     // ─────────────────────────────────────────────────────────────
 
+    /**
+     * Clean a raw item name string by removing special characters,
+     * collapsing multiple spaces, and capitalising the first letter
+     *
+     */
     private fun cleanItemName(name: String): String =
         name.replace(Regex("[*@#]"), "")
             .replace(Regex("\\s+"), " ")
             .trim()
             .replaceFirstChar { it.uppercase() }
 
+    /**
+     * Corrects common OCR character errors before parsing a price string
+     *
+     * OCR scanners misread:
+     * - l as digit 1
+     * - I as digit 1
+     * - O as digit 0
+     *
+     * The function also replaces commas with decimal points to handle European price formats.
+     */
     private fun parseMoneyNumber(s: String): Double? {
         val fixed = s
             .replace("l", "1", ignoreCase = false)
@@ -299,13 +404,26 @@ class ReceiptParser {
         return fixed.toDoubleOrNull()
     }
 
+    /**
+     * Regex pattern for matching money values preceded by £ or $ symbol
+     * Takes in OCR errors by including l, I, O, 0 as valid digit characters
+     */
     private val moneyRegex = Regex("""(?:£|\$)\s*([0-9lIOo]+(?:[.,][0-9]{2})?)(?![0-9!])""")
 
+
+    /**
+     * Extracts the first money value found on a line using moneyRegex pattern
+     */
     private fun extractMoneyFromLine(line: String): Double? {
         val m = moneyRegex.find(line) ?: return null
         return parseMoneyNumber(m.groupValues[1])
     }
 
+    /**
+     * Determines whether line of text looks like a phone number or reference code
+     * Used to prevent phone numbers and transaction references from being misidentified as
+     * store names or item names
+     */
     private fun looksLikePhoneOrRef(line: String): Boolean {
         val l = line.lowercase().trim()
         if (l.startsWith("tel") || l.startsWith("phone") || l.contains("tel:")) return true
@@ -314,6 +432,12 @@ class ReceiptParser {
         return false
     }
 
+    /**
+     * Determines whether a line of text looks like an address
+     * Checks for common UK addresses such as road, street, and lane, city names,
+     * UK postcode patterns and lines that begin with a number followed by a comma which
+     * is characteristic of street addresses
+     */
     private fun looksLikeAddress(line: String): Boolean {
         val l = line.lowercase()
         if (l.contains("road") || l.contains("street") || l.contains("lane") ||
@@ -330,6 +454,10 @@ class ReceiptParser {
         return false
     }
 
+    /**
+     * Determines whether a line of text resembles a date or time value
+     * It is used to prevent date and time strings from being identified as store names
+     */
     private fun looksLikeDateOrTime(line: String): Boolean {
         val l = line.trim()
         if (l.matches(Regex("""^\d{1,2}:\d{2}.*$"""))) return true
@@ -337,6 +465,14 @@ class ReceiptParser {
         return false
     }
 
+    /**
+     * Determines whether a line of text resembles a person's name.
+     * Used to prevent a cashier/staff names from being identified as the store name
+     *
+     * A line is considered as a person names if it contains exactly two words,
+     * both beginning with an uppercase letter and consist full of alphabetical
+     * characters with no digits or symbols
+     */
     private fun looksLikePersonName(line: String): Boolean {
         val words = line.trim().split(" ")
         if (words.size != 2) return false
@@ -348,6 +484,15 @@ class ReceiptParser {
         }
     }
 
+    /**
+     * Determines whether a line of text is noise that should be excluded from
+     * all parsing operations
+     *
+     * Noise line includes:
+     * web URLs, promotional text, loyalty card references, payment method, terminal
+     * and cashier info. And lines that consist of digits or * which are usually
+     * reference numbers or masked numbers
+     */
     private fun isNoiseLine(line: String): Boolean {
         val l = line.lowercase().trim()
         if (l.contains("www.") || l.contains("http")) return true
@@ -368,6 +513,10 @@ class ReceiptParser {
     // DATE / TIME
     // ─────────────────────────────────────────────────────────────
 
+    /**
+     * Extracts the purchase date from the raw OCR text
+     * Returns the first valid date match found across all platforms
+     */
     private fun extractDate(text: String): String? {
         val patterns = listOf(
             Regex("""(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})\s+\d{1,2}:\d{2}"""),
@@ -393,6 +542,14 @@ class ReceiptParser {
         return null
     }
 
+    /**
+     * Extracts the purchase time from the raw OCR text
+     *
+     * Searches the line for a time pattern in HOUR:MINUTES format
+     * It checks whether the time extracted is between 0 and 23 and the minute
+     * is between 0 and 59, this was a precaution taken because these AI-generated
+     * receipts that were tested, they were a tiny little bit flawed.
+     */
     private fun extractTime(text: String): String? {
         val lines = text.lines()
         for (line in lines) {
@@ -412,6 +569,14 @@ class ReceiptParser {
     // TOTALS
     // ─────────────────────────────────────────────────────────────
 
+    /**
+     * Extract total amounts from the raw OCR text using 3 stage strategy
+     * Stage 1 - Searches for lines that contain totalKeywordS - extracts price
+     * Stage 2 - Searches for lines starting with 'total' - extracts price
+     * Stage 3 - Fallback - collects all the money values from the non-noise lines
+     * and returns the max value found
+     *
+     */
     private fun extractTotal(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
         val totalKeywords = listOf("total amount", "amount due", "balance due")
@@ -462,6 +627,16 @@ class ReceiptParser {
             .also { Log.d("PARSER", "Total fallback: £$it") }
     }
 
+    /**
+     * Extracts the tax or VAT amount from the raw OCR text using a two-stage strategy
+     *
+     * It first searches for lines that contain 'tax' or 'vat' keywords with a price
+     * on the same line and returns that price directly
+     *
+     * And if there is no inline tax price found but a 'Tax' or 'VAT' label line exists, then it uses
+     * a potential logic based on the known receipt structure: [items, subtotal, tax, total]. The tax
+     * value is the second to last money value before the total
+     */
     private fun extractTax(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
@@ -500,7 +675,7 @@ class ReceiptParser {
 
         if (!hasTaxLabel) return null
 
-        // Structure is always: [items..., subtotal, tax, total]
+        // Structure is always: [items, subtotal, tax, total]
         // Tax = second to last value (before total)
         val withoutTotal = if (total != null && allMoney.lastOrNull() == total)
             allMoney.dropLast(1) else allMoney
@@ -512,6 +687,17 @@ class ReceiptParser {
         } else null
     }
 
+    /**
+     * Extracts the subtotal amount from the raw OCR text using a 2-stage strategy
+     *
+     * Stage 1: Searches for lines containing subtotal keywords with a price
+     *  on the same line and returns that price directly
+     *
+     * Stage 2: If no inline subtotal price is found but a subtotal label line exists
+     * and uses positional logic. If no label exists at all, then attempts to take out the
+     * subtotal by subtracting tax from total -> had to find a solution to resolve the subtotal
+     * to be displayed correctly
+     */
     private fun extractSubtotal(text: String): Double? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
@@ -566,6 +752,12 @@ class ReceiptParser {
     // CATEGORISATION
     // ─────────────────────────────────────────────────────────────
 
+    /**
+     * Categorises an item into a defined spending category
+     *
+     * A special stopKeywords category is used to identify lines that should not be
+     * treated as items, such as payment method names, loyalty card and summary lines
+     */
     internal fun categorizeItem(itemName: String): String {
         val lower = itemName.lowercase()
         return when {
@@ -604,6 +796,11 @@ class ReceiptParser {
     // KNOWN STORES
     // ─────────────────────────────────────────────────────────────
 
+    /**
+     * Database of about 40 retailers used for store name recognition
+     *
+     * Is yet to be expanded
+     */
     private val knownStores = listOf(
         "tesco", "sainsbury", "asda", "morrisons", "waitrose", "aldi", "lidl",
         "co-op", "coop", "co op", "iceland", "marks", "m&s", "marks and spencer",
@@ -614,6 +811,19 @@ class ReceiptParser {
         "pizza", "nando", "wagamama", "itsu", "leon"
     )
 
+    /**
+     * Extract the shipping or delivery cost from the raw OCR text
+     *
+     * Uses 2 stage strategies:
+     * Stage 1 : Searches for lines that contain shipping, delivery or postage keywords
+     * with a price on the same line. Excludes lines that contain 'shipping to' or 'addresses'
+     * to avoid matching delivery address headers
+     *
+     * Stage 2 : For receipts with no financial summary labels (tax, subtotal, total)
+     * calculates shipping as the remainder: total - sum of items - tax
+     * This solves the issue for when online formats, where shopping appears as an
+     * indirect line rather than a labelled line
+     */
     private fun extractShipping(
         text: String,
         items: List<ParsedItem>,
