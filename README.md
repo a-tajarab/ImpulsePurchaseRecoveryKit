@@ -66,13 +66,13 @@ Task Details
 
 🔹 Added a regret score screen with a slider (1–10) and a text box for feelings (“Why did I buy this?”).~ slider is completed + text box is there but can be improved ✅
 
-🔹 Linked the regret score to the receipts - Each receipt has 1 emotional entry. 
+🔹 Linked the regret score to the receipts - Each receipt has 1 emotional entry. ✅
 
-🔹 Added “Did You Know?” popups, added random facts from my literature data. ~ very basic, also needs enhancing
+🔹 Added “Did You Know?” popups, added random facts from my literature data. ~ very basic, also needs enhancing ✅
 
-🔹 Built an analytics dashboard that shows expenditure by category, average regret, etc. ~ most products from receipts have been categorised but there can be more added 
+🔹 Built an analytics dashboard that shows expenditure by category, average regret, etc. ~ most products from receipts have been categorised but there can be more added ✅
 
-🔹 Use chart library	MPAndroidChart or Compose Charts.
+🔹 Use chart library	MPAndroidChart or Compose Charts. ✅
 
 
 
@@ -81,17 +81,17 @@ Design, Testing & Polish
 
 Task Details
 
-🔹 Design final UI	Use consistent color palette, icons, typography.
+🔹 Design final UI	Use consistent color palette, icons, typography. ✅
 
-🔹 Add animations	Simple transitions for smooth experience.
+🔹 Add animations	Simple transitions for smooth experience. ✅
 
-🔹 Add splash & onboarding screens	Short intro explaining the app’s purpose.
+🔹 Add splash & onboarding screens	Short intro explaining the app’s purpose. ✅
 
-🔹 Add error handling	Handle OCR failures, blank fields, missing permissions.
+🔹 Add error handling	Handle OCR failures, blank fields, missing permissions. ✅
 
-🔹 Test on multiple devices	Check performance, layout, and bugs.
+🔹 Test on multiple devices	Check performance, layout, and bugs.  - to some extent
 
-🔹 Final demo recording	Record a short walkthrough video for documentation.
+🔹 Final demo recording	Record a short walkthrough video for documentation. - video completed ✅ no documentation though 
 
 --
 --
