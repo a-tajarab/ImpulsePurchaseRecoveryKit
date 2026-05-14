@@ -83,9 +83,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
 
-    // ML Kit for text recognition
-    implementation("com.google.mlkit:text-recognition:16.0.0")
-
     // CameraX for camera functionality
     implementation("androidx.camera:camera-camera2:1.3.1")
     implementation("androidx.camera:camera-lifecycle:1.3.1")
