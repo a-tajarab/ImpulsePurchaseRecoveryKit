@@ -1,6 +1,9 @@
 package com.example.impulsepurchaserecoverykit.ui.screens
 
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,8 +13,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.SentimentDissatisfied
 import androidx.compose.material.icons.filled.SentimentNeutral
 import androidx.compose.material.icons.filled.SentimentSatisfied
@@ -20,12 +25,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
 import com.example.impulsepurchaserecoverykit.ui.theme.*
@@ -76,6 +86,7 @@ fun ReceiptDetailScreen(
     var showAnalysisSheet by remember { mutableStateOf(false) }
     var showDeleteDialog by remember {mutableStateOf(false)}
     var isEditing by remember { mutableStateOf(false) }
+    var showImageViewer by remember { mutableStateOf(false) }
 
     // Edit state for receipt fields
     var editStoreName by remember { mutableStateOf("") }
@@ -165,6 +176,14 @@ fun ReceiptDetailScreen(
             }
         )
     }
+    // Full-screen receipt image viewer
+    if (showImageViewer && r.imageUri != null) {
+        ReceiptImageViewer(
+            imageUri = r.imageUri,
+            onDismiss = { showImageViewer = false }
+        )
+    }
+
     //Purchase analaysis bottom sheet
     if (showAnalysisSheet) {
         ModalBottomSheet(
@@ -370,6 +389,29 @@ fun ReceiptDetailScreen(
                                     fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.primary
                                 )
+                            }
+                            if (r.imageUri != null) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                OutlinedButton(
+                                    onClick = { showImageViewer = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Default.Receipt,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("View receipt image", fontWeight = FontWeight.SemiBold)
+                                }
                             }
                         }
                     }
@@ -1090,5 +1132,50 @@ private fun parseReasons(json: String?): List<String> {
         List(arr.length()) { i -> arr.getString(i) }
     } catch (e: Exception) {
         emptyList()
+    }
+}
+
+@Composable
+private fun ReceiptImageViewer(imageUri: String, onDismiss: () -> Unit) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+        scale = (scale * zoomChange).coerceIn(1f, 5f)
+        offset += panChange
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            AsyncImage(
+                model = Uri.parse(imageUri),
+                contentDescription = "Receipt image",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offset.x,
+                        translationY = offset.y
+                    )
+                    .transformable(transformState)
+            )
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
+        }
     }
 }
