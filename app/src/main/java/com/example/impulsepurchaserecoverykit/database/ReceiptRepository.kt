@@ -3,7 +3,6 @@ package com.example.impulsepurchaserecoverykit.database
 import androidx.room.withTransaction
 import com.example.impulsepurchaserecoverykit.ImpulseScorer
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
-import com.example.impulsepurchaserecoverykit.ReceiptParser
 import com.example.impulsepurchaserecoverykit.database.dao.ItemReactionDao
 import com.example.impulsepurchaserecoverykit.database.entities.EmotionEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
@@ -280,16 +279,37 @@ class ReceiptRepository(private val database: AppDatabase) {
     }
 
     suspend fun addItemToReceipt(receiptId: Long, name: String, price: Double, quantity: Int) {
-        val parser = ReceiptParser()
         val item = ItemEntity(
             receiptId = receiptId,
             name = name,
             price = price,
             quantity = quantity,
-            category = parser.categorizeItem(name)
+            category = categorizeByName(name)
         )
         itemDao.insertItem(item)
     }
+
+    private fun categorizeByName(name: String): String {
+        val lower = name.lowercase()
+        return when {
+            lower.containsAny("milk", "cheese", "yogurt", "butter", "cream", "dairy") -> "dairy"
+            lower.containsAny("fruit", "vegetable", "veg", "salad", "lettuce", "tomato", "apple", "banana", "orange", "carrot", "onion", "potato") -> "produce"
+            lower.containsAny("water", "juice", "soda", "coffee", "tea", "drink", "beverage", "beer", "wine", "coke", "pepsi", "lemonade") -> "beverage"
+            lower.containsAny("chicken", "beef", "pork", "lamb", "fish", "salmon", "tuna", "shrimp", "steak", "bacon", "sausage", "meat") -> "meat"
+            lower.containsAny("bread", "cake", "muffin", "croissant", "bagel", "pastry", "cookie", "donut", "biscuit", "bakery") -> "bakery"
+            lower.containsAny("shirt", "top", "blouse", "tee", "jumper", "sweater", "hoodie") -> "tops"
+            lower.containsAny("jeans", "trousers", "pants", "shorts", "skirt", "leggings") -> "bottoms"
+            lower.containsAny("jacket", "coat", "blazer", "hoodie", "cardigan", "outerwear") -> "outerwear"
+            lower.containsAny("shoe", "boot", "sneaker", "trainer", "heel", "sandal", "loafer") -> "shoes"
+            lower.containsAny("necklace", "ring", "bracelet", "earring", "watch", "accessory") -> "accessories"
+            lower.containsAny("bag", "handbag", "backpack", "purse", "wallet", "tote") -> "bags"
+            lower.containsAny("shampoo", "conditioner", "soap", "toothpaste", "deodorant", "moisturiser", "perfume", "makeup", "lipstick", "mascara") -> "toiletries"
+            lower.containsAny("candle", "towel", "pillow", "blanket", "cup", "mug", "plate", "bowl", "vase", "frame", "lamp") -> "homeware"
+            else -> "other"
+        }
+    }
+
+    private fun String.containsAny(vararg keywords: String) = keywords.any { this.contains(it) }
     fun getItemsForMonth(year: Int, month: Int): Flow<List<ItemEntity>> {
         return receiptDao.getItemsForMonth(year, month)
     }
