@@ -11,6 +11,7 @@ composeBom = "2024.09.00"
 ksp = "2.0.20-1.0.25"
 room = "2.6.1"
 navigation = "2.7.6"
+playServicesMlkitTextRecognition = "19.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,6 +33,7 @@ androidx-room-runtime = {group = "androidx.room", name = "room-runtime", version
 androidx-room-ktx = {group = "androidx.room", name = "room-ktx", version.ref = "room"}
 androidx-room-compiler = {group = "androidx.room", name = "room-compiler", version.ref = "room"}
 androidx-navigation-compose = {group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation"}
+play-services-mlkit-text-recognition = { group = "com.google.android.gms", name = "play-services-mlkit-text-recognition", version.ref = "playServicesMlkitTextRecognition" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

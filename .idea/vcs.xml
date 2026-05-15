@@ -2,5 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ImpulsePurchaseRecoveryKit/vibrant-herschel-4aa615" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ImpulsePurchaseRecoveryKit/vigorous-kepler-9cdd30" vcs="Git" />
   </component>
 </project>
