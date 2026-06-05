@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
 import com.example.impulsepurchaserecoverykit.database.AppDatabase
 import com.example.impulsepurchaserecoverykit.database.ReceiptRepository
+import com.example.impulsepurchaserecoverykit.database.entities.GoalEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
 import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
@@ -13,10 +14,12 @@ import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
 import com.example.impulsepurchaserecoverykit.database.models.WeeklySpend
 import com.example.impulsepurchaserecoverykit.database.models.WeeklyRegret
 import com.example.impulsepurchaserecoverykit.database.entities.ItemReactionEntity
+import com.example.impulsepurchaserecoverykit.database.entities.SavingGoalEntity
 import com.example.impulsepurchaserecoverykit.ui.screens.OcrFailureReason
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -228,5 +231,80 @@ class ReceiptViewModel(application: Application) : AndroidViewModel(application)
 
     fun getMonthlySpend(year: Int, month: Int): Flow<Double?> =
         repository.getMonthlySpend(year, month)
+
+    fun getGoal(): Flow<GoalEntity?> = repository.getGoal()
+
+    fun upsertGoal(goal: GoalEntity) {
+        viewModelScope.launch {
+            repository.upsertGoal(goal)
+        }
+    }
+
+    fun deleteGoal() {
+        viewModelScope.launch {
+            repository.deleteGoal()
+        }
+    }
+
+    /**
+     * Checks if the current month's goal is still valid.
+     * Resets automatically if a new month has started.
+     */
+    fun checkAndResetGoalIfNeeded() {
+        viewModelScope.launch {
+            val goal = repository.getGoal().first() ?: return@launch
+            val now = java.util.Calendar.getInstance()
+            val currentMonth = now.get(java.util.Calendar.MONTH) + 1
+            val currentYear = now.get(java.util.Calendar.YEAR)
+            if (goal.goalMonth != currentMonth || goal.goalYear != currentYear) {
+                // New month — reset goal to current month
+                repository.upsertGoal(
+                    goal.copy(
+                        goalMonth = currentMonth,
+                        goalYear = currentYear,
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
+    fun getSavingGoals(): Flow<List<SavingGoalEntity>> =
+        repository.getSavingGoals()
+
+    fun addSavingGoal(name: String, targetAmount: Double) {
+        viewModelScope.launch { repository.addSavingGoal(name, targetAmount) }
+    }
+
+    fun updateSavingGoal(goal: SavingGoalEntity) {
+        viewModelScope.launch { repository.updateSavingGoal(goal) }
+    }
+
+    fun deleteSavingGoal(goal: SavingGoalEntity) {
+        viewModelScope.launch { repository.deleteSavingGoal(goal) }
+    }
+
+    /**
+     * Move [goal] one position up (lower priority number = more important).
+     * Finds the adjacent goal above it in the sorted list and swaps priorities.
+     */
+    fun moveSavingGoalUp(sortedGoals: List<SavingGoalEntity>, goal: SavingGoalEntity) {
+        val index = sortedGoals.indexOf(goal)
+        if (index <= 0) return
+        viewModelScope.launch {
+            repository.swapSavingGoalPriorities(goal, sortedGoals[index - 1])
+        }
+    }
+
+    /**
+     * Move [goal] one position down (higher priority number = less important).
+     */
+    fun moveSavingGoalDown(sortedGoals: List<SavingGoalEntity>, goal: SavingGoalEntity) {
+        val index = sortedGoals.indexOf(goal)
+        if (index < 0 || index >= sortedGoals.size - 1) return
+        viewModelScope.launch {
+            repository.swapSavingGoalPriorities(goal, sortedGoals[index + 1])
+        }
+    }
 
 }

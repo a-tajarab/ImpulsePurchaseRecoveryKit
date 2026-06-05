@@ -5,6 +5,7 @@ import com.example.impulsepurchaserecoverykit.ImpulseScorer
 import com.example.impulsepurchaserecoverykit.ParsedReceipt
 import com.example.impulsepurchaserecoverykit.database.dao.ItemReactionDao
 import com.example.impulsepurchaserecoverykit.database.entities.EmotionEntity
+import com.example.impulsepurchaserecoverykit.database.entities.GoalEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
 import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
@@ -12,8 +13,10 @@ import com.example.impulsepurchaserecoverykit.database.models.CategoryCount
 import com.example.impulsepurchaserecoverykit.database.models.WeeklySpend
 import com.example.impulsepurchaserecoverykit.database.models.WeeklyRegret
 import com.example.impulsepurchaserecoverykit.database.entities.ItemReactionEntity
+import com.example.impulsepurchaserecoverykit.database.entities.SavingGoalEntity
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class ReceiptRepository(private val database: AppDatabase) {
 
@@ -21,6 +24,13 @@ class ReceiptRepository(private val database: AppDatabase) {
     private val itemDao = database.itemDao()
     private val emotionDao = database.emotionDao()
     private val itemReactionDao = database.itemReactionDao()
+    private val goalDao = database.goalDao()
+    private val savingGoalDao = database.savingGoalDao()
+
+    fun getGoal(): Flow<GoalEntity?> = goalDao.getGoal()
+    suspend fun upsertGoal(goal: GoalEntity) = goalDao.upsertGoal(goal)
+
+    suspend fun deleteGoal() = goalDao.deleteGoal()
 
 
     // ========== Receipt Operations ==========
@@ -316,5 +326,79 @@ class ReceiptRepository(private val database: AppDatabase) {
 
     fun getMonthlySpend(year: Int, month: Int): Flow<Double?> =
         receiptDao.getMonthlySpend(year, month)
+
+
+
+    /**
+     * Calculates how much the user has saved this month by NOT making
+     * high impulse purchases. Compares what they actually spent on LOW
+     * impulse items vs what they would have spent if all purchases
+     * were high impulse.
+     */
+    suspend fun calculateMonthlySavings(year: Int, month: Int): Double {
+        // Use first() to get a single snapshot from the Flow
+        val allReceipts = receiptDao.getAllReceipts().first()
+
+        val monthReceipts = allReceipts.filter { receipt ->
+            receipt.purchaseDate?.let { date ->
+                isInMonth(date, year, month)
+            } ?: false
+        }
+
+        // High impulse spend = money spent impulsively this month
+        val highImpulseSpend = monthReceipts
+            .filter { it.impulseLabel == "HIGH" }
+            .sumOf { it.totalAmount ?: 0.0 }
+
+        return highImpulseSpend
+    }
+
+    private fun isInMonth(date: String, year: Int, month: Int): Boolean {
+        return try {
+            when {
+                // DD/MM/YYYY format
+                date.matches(Regex("""\d{2}/\d{2}/\d{4}""")) -> {
+                    val m = date.substring(3, 5).toInt()
+                    val y = date.substring(6, 10).toInt()
+                    m == month && y == year
+                }
+                // D/M/YYYY format
+                date.matches(Regex("""\d{1,2}/\d{1,2}/\d{4}""")) -> {
+                    val parts = date.split("/")
+                    parts[1].toInt() == month && parts[2].toInt() == year
+                }
+                else -> false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+
+
+    fun getSavingGoals(): Flow<List<SavingGoalEntity>> =
+        savingGoalDao.getAllGoals()
+
+    suspend fun addSavingGoal(name: String, targetAmount: Double) {
+        val nextPriority = savingGoalDao.getGoalCount() + 1
+        savingGoalDao.insertGoal(
+            SavingGoalEntity(name = name, targetAmount = targetAmount, priority = nextPriority)
+        )
+    }
+
+    suspend fun updateSavingGoal(goal: SavingGoalEntity) =
+        savingGoalDao.updateGoal(goal)
+
+    suspend fun deleteSavingGoal(goal: SavingGoalEntity) =
+        savingGoalDao.deleteGoal(goal)
+
+    /**
+     * Swaps the priority values of two adjacent goals so one moves
+     * up or down in the ordered list.
+     */
+    suspend fun swapSavingGoalPriorities(a: SavingGoalEntity, b: SavingGoalEntity) {
+        savingGoalDao.updateGoal(a.copy(priority = b.priority))
+        savingGoalDao.updateGoal(b.copy(priority = a.priority))
+    }
 }
 
