@@ -24,4 +24,5 @@ sealed class Screen(val route: String) {
     data object Regret : Screen("regret/{receiptId}") {
         fun create(receiptId: Long) = "regret/$receiptId"
     }
+    data object Goal : Screen("goal")
 }

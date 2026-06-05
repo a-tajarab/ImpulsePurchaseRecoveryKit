@@ -12,19 +12,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.impulsepurchaserecoverykit.database.models.CategorySpend
-
-private val Teal700 = Color(0xFF2E6B63)
-private val Teal500 = Color(0xFF4E9E8F)
-private val Teal200 = Color(0xFFA8D5CC)
-private val Terra500 = Color(0xFFD4845A)
-private val Terra700 = Color(0xFFB5623A)
-private val Warning700 = Color(0xFFB06A00)
+// Import theme tokens — never redeclare colours locally
+import com.example.impulsepurchaserecoverykit.ui.theme.Teal700
+import com.example.impulsepurchaserecoverykit.ui.theme.Teal500
+import com.example.impulsepurchaserecoverykit.ui.theme.Teal200
+import com.example.impulsepurchaserecoverykit.ui.theme.Terra500
+import com.example.impulsepurchaserecoverykit.ui.theme.Terra700
+import com.example.impulsepurchaserecoverykit.ui.theme.Warning700
 
 @Composable
 fun CategorySpendBarChart(
@@ -47,18 +46,17 @@ fun CategorySpendBarChart(
                 "£${String.format("%.1f", row.total / 1000)}k"
             else
                 "£${String.format("%.2f", row.total)}"
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // ── Bar + category label inside + value at end ──
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(36.dp)
                 ) {
-                    // Background track
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -69,7 +67,6 @@ fun CategorySpendBarChart(
                         modifier = Modifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Coloured bar
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(fraction)
@@ -79,7 +76,6 @@ fun CategorySpendBarChart(
                             contentAlignment = Alignment.CenterStart
                         ) {
                             if (fraction > 0.25f) {
-                                // Category label inside bar
                                 Text(
                                     text = row.category.replaceFirstChar { it.uppercase() },
                                     fontSize = 11.sp,
@@ -105,7 +101,6 @@ fun CategorySpendBarChart(
                     }
                 }
 
-                // ── Value at end of bar ──
                 Text(
                     text = valueLabel,
                     fontSize = 11.sp,

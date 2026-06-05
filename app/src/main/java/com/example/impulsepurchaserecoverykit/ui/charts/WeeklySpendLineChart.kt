@@ -15,16 +15,15 @@ import com.patrykandpatrick.vico.core.chart.line.LineChart
 import com.patrykandpatrick.vico.core.component.shape.Shapes
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.FloatEntry
-
-private val Teal700 = Color(0xFF2E6B63)
-private val Teal100 = Color(0xFFD4EDE9)
+// Import theme tokens — never redeclare colours locally
+import com.example.impulsepurchaserecoverykit.ui.theme.Teal700
+import com.example.impulsepurchaserecoverykit.ui.theme.Teal100
 
 @Composable
 fun WeeklySpendLineChart(
     data: List<WeeklySpend>,
     modifier: Modifier = Modifier
 ) {
-    // x = week index (0..n-1), y = spend total
     val entries = data.mapIndexed { index, row ->
         FloatEntry(x = index.toFloat(), y = row.total.toFloat())
     }
@@ -45,8 +44,7 @@ fun WeeklySpendLineChart(
     )
 
     Chart(
-        chart = lineChart(
-            lines = listOf(lineSpec)),
+        chart = lineChart(lines = listOf(lineSpec)),
         chartModelProducer = producer,
         modifier = modifier
             .fillMaxWidth()

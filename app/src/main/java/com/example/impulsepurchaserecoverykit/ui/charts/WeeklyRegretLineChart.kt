@@ -14,25 +14,21 @@ import com.patrykandpatrick.vico.core.chart.line.LineChart
 import com.patrykandpatrick.vico.core.component.shape.Shapes
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.FloatEntry
-
-private val Terra500 = Color(0xFFD4845A)
-private val Error700 = Color(0xFFA8362A)
-
+// Import theme tokens — never redeclare colours locally
+import com.example.impulsepurchaserecoverykit.ui.theme.Terra500
+import com.example.impulsepurchaserecoverykit.ui.theme.Error700
 
 @Composable
 fun WeeklyRegretLineChart(
     data: List<WeeklyRegret>,
     modifier: Modifier = Modifier
 ) {
-
     val entries = data.mapIndexed { index, row ->
-        FloatEntry(
-            x = index.toFloat(),
-            y = row.avgRegret.toFloat()
-        )
+        FloatEntry(x = index.toFloat(), y = row.avgRegret.toFloat())
     }
 
     val producer = ChartEntryModelProducer(entries)
+
     val lineSpec = LineChart.LineSpec(
         lineColor = Terra500.hashCode(),
         lineThicknessDp = 3f,
@@ -46,9 +42,7 @@ fun WeeklyRegretLineChart(
     )
 
     Chart(
-        chart = lineChart(
-            lines = listOf(lineSpec)
-        ),
+        chart = lineChart(lines = listOf(lineSpec)),
         chartModelProducer = producer,
         modifier = modifier
             .fillMaxWidth()
