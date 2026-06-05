@@ -4,14 +4,20 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.impulsepurchaserecoverykit.database.dao.EmotionDao
+import com.example.impulsepurchaserecoverykit.database.dao.GoalDao
 import com.example.impulsepurchaserecoverykit.database.dao.ItemDao
 import com.example.impulsepurchaserecoverykit.database.dao.ItemReactionDao
 import com.example.impulsepurchaserecoverykit.database.dao.ReceiptDao
+import com.example.impulsepurchaserecoverykit.database.dao.SavingGoalDao
 import com.example.impulsepurchaserecoverykit.database.entities.EmotionEntity
+import com.example.impulsepurchaserecoverykit.database.entities.GoalEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ItemEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity
 import com.example.impulsepurchaserecoverykit.database.entities.ItemReactionEntity
+import com.example.impulsepurchaserecoverykit.database.entities.SavingGoalEntity
 
 /**
  * AppDatabase is the main Room database class for the IPRK
@@ -26,9 +32,11 @@ import com.example.impulsepurchaserecoverykit.database.entities.ItemReactionEnti
         ReceiptEntity::class, //primary receipt table
         ItemEntity::class,  //individual items extracted from each receipt
         EmotionEntity::class,  //Emotional check in records linked to receipts
-        ItemReactionEntity::class  // Item level positive, neutral, negative reactions
+        ItemReactionEntity::class,  // Item level positive, neutral, negative reactions
+        GoalEntity::class,
+        SavingGoalEntity::class
     ],
-    version =  7,
+    version =  9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -61,6 +69,8 @@ abstract class AppDatabase : RoomDatabase() {
      * These reactions are used to calculate the overall user sentiment score
      */
     abstract fun itemReactionDao(): ItemReactionDao
+    abstract fun goalDao(): GoalDao
+    abstract fun savingGoalDao(): SavingGoalDao
 
     companion object {
         @Volatile
