@@ -2,10 +2,21 @@ package com.example.impulsepurchaserecoverykit.ui
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.example.impulsepurchaserecoverykit.navigation.Screen
@@ -13,6 +24,7 @@ import com.example.impulsepurchaserecoverykit.navigation.bottomNavItems
 import com.example.impulsepurchaserecoverykit.ui.screens.*
 import com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel
 import com.example.impulsepurchaserecoverykit.ui.screens.ScanScreen
+import com.example.impulsepurchaserecoverykit.ui.theme.Terra500
 
 
 @Composable
@@ -44,36 +56,31 @@ fun AppRoot(
             val hideNav = currentRoute == Screen.Splash.route ||
                     currentRoute == Screen.Onboarding.route
 
-            if (!hideNav){
-                NavigationBar {
-                    bottomNavItems.forEach { item ->
-                        NavigationBarItem(
-                            selected = currentRoute == item.route,
-                            onClick = {
-                                if(item.route == Screen.Home.route){
-                                    navController.navigate(Screen.Home.route){
-                                        popUpTo(navController.graph.findStartDestination().id){
-                                            inclusive = true
-                                            saveState = false
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = false
-                                    }
-                                } else {
-                                    navController.navigate(item.route){
-                                        popUpTo(navController.graph.findStartDestination().id){
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+            if (!hideNav) {
+                ScannerBottomBar(
+                    currentRoute = currentRoute,
+                    onNavClick = { route ->
+                        if (route == Screen.Home.route) {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    inclusive = true
+                                    saveState = false
                                 }
-                            },
-                            icon = { Icon(item.icon, contentDescription = item.label)},
-                            label = { Text(item.label)}
-                        )
-                    }
-                }
+                                launchSingleTop = true
+                                restoreState = false
+                            }
+                        } else {
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    },
+                    onScanClick = { navController.navigate(Screen.Scan.route) }
+                )
             }
         }
     ) { padding ->
@@ -103,7 +110,7 @@ fun AppRoot(
                     onOnboardingComplete = {
                         prefs.edit().putBoolean("onboarding_complete", true).apply()
                         navController.navigate(Screen.Home.route){
-                            popUpTo(Screen.Onboarding.route){ inclusive = true}
+                            popUpTo(Screen.Onboarding.route) { inclusive = true}
                         }
                     }
                 )
@@ -112,9 +119,9 @@ fun AppRoot(
                 HomeScreen(
                     paddingValues = padding,
                     viewModel = viewModel,
-                    onScanClick = { navController.navigate(Screen.Scan.route) },
                     onReceiptClick = { id ->
-                        navController.navigate(Screen.ReceiptDetail.create(id)) }
+                        navController.navigate(Screen.ReceiptDetail.create(id)) },
+                    onGoalClick = { navController.navigate(Screen.Goal.route)}
                 )
             }
 
@@ -222,6 +229,80 @@ fun AppRoot(
                 )
             }
 
+            composable(Screen.Goal.route) {
+                SpendingGoalScreen(
+                    paddingValues = padding,
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+        }
+    }
+}
+
+@Composable
+private fun ScannerBottomBar(
+    currentRoute: String?,
+    onNavClick: (String) -> Unit,
+    onScanClick: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+
+        NavigationBar {
+            // ── Left: Home, Receipts
+            bottomNavItems.take(2).forEach { item ->
+                NavigationBarItem(
+                    selected = currentRoute == item.route,
+                    onClick = { onNavClick(item.route) },
+                    icon = { Icon(item.icon, contentDescription = item.label) },
+                    label = { Text(item.label) }
+                )
+            }
+
+            // ── Centre: invisible spacer that reserves space for the FAB ──
+            NavigationBarItem(
+                selected = false,
+                onClick = {},
+                enabled = false,
+                icon = { /* transparent gap — FAB floats here */ },
+                label = {},
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = Color.Transparent,
+                    disabledIconColor = Color.Transparent
+                )
+            )
+
+            // ── Right: Stats, Bot
+            bottomNavItems.drop(2).forEach { item ->
+                NavigationBarItem(
+                    selected = currentRoute == item.route,
+                    onClick = { onNavClick(item.route) },
+                    icon = { Icon(item.icon, contentDescription = item.label) },
+                    label = { Text(item.label) }
+                )
+            }
+        }
+
+        // ── Scanner FAB — raised above the nav bar ──
+        // Aligned to the top-centre of this Box, then offset upward so it
+        // bleeds into the content area, matching the standard M3 FAB-in-nav pattern.
+        FloatingActionButton(
+            onClick = onScanClick,
+            modifier = Modifier
+                .size(60.dp)
+                .align(Alignment.TopCenter)
+                .offset(y = (-18).dp),
+            shape = CircleShape,
+            containerColor = Terra500,
+            contentColor = Color.White,
+            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Scan receipt",
+                modifier = Modifier.size(26.dp)
+            )
         }
     }
 }

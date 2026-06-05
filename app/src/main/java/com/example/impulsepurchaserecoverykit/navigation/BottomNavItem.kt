@@ -18,5 +18,5 @@ data class BottomNavItem (
         BottomNavItem("Home", Icons.Filled.Home, Screen.Home.route),
         BottomNavItem("Receipts", Icons.Filled.ReceiptLong, Screen.Receipts.route),
         BottomNavItem("Stats", Icons.Filled.ShowChart, Screen.Stats.route),
-        BottomNavItem("Bot", Icons.Filled.SmartToy, Screen.Bot.route)
+        BottomNavItem("KIRA", Icons.Filled.SmartToy, Screen.Bot.route)
     )
