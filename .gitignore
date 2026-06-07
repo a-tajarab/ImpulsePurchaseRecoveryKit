@@ -1,15 +1,33 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
+# ── Gradle ────────────────────────────────────────────────────────────────
+.gradle/
 /build
-/captures
-.externalNativeBuild
-.cxx
+app/build/
+gradle/wrapper/gradle-wrapper.jar
+
+# ── Local config — NEVER commit (contains SDK path) ───────────────────────
 local.properties
+
+# ── IDE — Android Studio / IntelliJ ───────────────────────────────────────
+# Ignore the ENTIRE .idea folder, not just specific files inside it
+.idea/
+*.iml
+
+# ── Kotlin compiler artefacts ──────────────────────────────────────────────
+.kotlin/
+
+# ── Android build artefacts ───────────────────────────────────────────────
+*.apk
+*.aab
+*.ap_
+*.dex
+/captures
+.externalNativeBuild/
+.cxx/
+
+# ── Keystore / secrets ────────────────────────────────────────────────────
+*.jks
+*.keystore
+google-services.json
+
+# ── macOS ─────────────────────────────────────────────────────────────────
+.DS_Store
