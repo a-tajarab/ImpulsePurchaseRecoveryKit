@@ -1,100 +1,144 @@
 # Impulse Purchase Recovery Kit 🛍️🧠
-An Android application designed to help users process, reflect on, and learn from their impulse spending habits by blending practical finance tracking with emotional awareness and a touch of humor.
+A smart Android spending coach that helps you scan receipts, understand your impulse patterns, make intentional financial decision - powered by Claude AI and ML Kit OCR. 
 
-### 🎯 Project Aim
-The core aim of the Impulse Purchase Recovery Kit is to provide a space where users can be more organized with their finances while simultaneously raising emotional awareness. By using humor and compassionate reflection, the app encourages users to make healthier, more intentional spending decisions and learn from past purchases without judgment.
+### What is it? 
+Most budgeting apps tell you what you spent, but this one asks you how you feel about it.
 
-## ✨ Core Features
+The Impulse Purchase Recovery Kit combines receipt scanning, AI-powered analysis, emotional reflection, and a conversational spending coach all in one app. The goal is not to stop you spending, it's to make spending a conscious choice rather than a reflex.
+
+### Key Features
 ### The application is built around a set of unique tools designed to integrate spending data with personal emotional feedback:
 
-### 🧾 Receipt Scanner (OCR)
-Effortlessly logs purchases by scanning physical receipts, translating the purchase data directly into the app's database using Optical Character Recognition (OCR).
+### Receipt Scanning
+Point your camera at any receipt. The ML Kit OCR extracts the text on the device instantly, the text is then transferred to Claude AI which parses the text into structred data; store name, date, items, quantities and totals. 
 
-### 💔 Regret Score System 
-Allows users to log how they truly feel about a purchase using a customizable regret scale. This metric is key to analyzing the emotional impact of spending.
+### Impulse Scoring 
+Every receipt gets an automatic impulse risk score from 0-100, calculated by the device without a network call. The score uses time of day, category, spend amount, and purchase patterns to label each receipt LOW, MEDIUM, or HIGH. 
 
-### 📈 Impulse Tracker
-Visualizes user purchases on a timeline in a graph format, providing a clear trend of spending habits over time.
+### Regret Tracking
+Rate how you feel about each purchase trip from 1-10. React to individual items (happy/neutral/regret). The app tracks whether your regret trends up or down over a period of time, which is more useful than a raw spend figure. 
 
-### 🤖 Suggestion Bot
-An interactive feature where users can inquire about a recent or future purchase. The bot provides personalized, prompt advice based on the user's recorded spending patterns and financial status (e.g., "Maybe wait 24 hours?").
+### Monthly Budget & Saving Goals
+Set a monthly spending limit, visualised as a donut that shifts from green to amber to red as you approach your limit. Add as many saving goals as you want; 'holiday, laptop, trainers' etc. and rank them by priority. The app estimates how many months away each goal is based on your current saving rate.
 
-### 🫂 Emotional Response Engine
-A critical support feature. If a user logs an exceptionally high regret score, the engine immediately prompts a response to comfort the user, encourage a positive outlook, and provide actionable, gentle advice on how to avoid a similar situation next time.
+### KIRA - AI Spending Coach
+KIRA is a Claude-powered conversational assistant that processes your purchase history. Ask it "should I buy this?", "how am I doing this month?", or "what do I regret most?" and KIRA will respond with specific, and reliable advice that is aimed to help you make good financial habits, and give you insight of your spending behaviour under a variety of emotions. It applies frameworks like the 24 hour rule, the Cost-Per-Use Test, and the Regret Test automatically. 
 
-
-#### Sep - Oct 
-Core Setup + OCR Foundation
-
-Task Details
-
-🔹Android Studio Setup - Created a new project in Kotlin. ✅
-
-🔹A ML Kit dependency is added and is implemented 'com.google.mlkit:text-recognition:16.0.0'✅
-
-🔹Built an image input flow	to allow user capture or upload receipt by using camera & storage.✅
-
-🔹Implemented the OCR to process and used the ML Kit to extract text from receipt and log the order to Logcat.✅
-
-🔹Parsed text into key fields it extracts the item name, price, quantity, total amount, and the store name.~ somewhat completed
-
-🔹It stores sample outputs and saves the OCR text as CSV for quick testing. ✅
-
-
-#### Nov - Dec
-Data Storage + App Skeleton (Backend + Basic UI)
-
-Task Details
-
-🔹 Create Room Database	Entities: Receipt, Item, Emotion.✅
-
-🔹 Implement DAOs & Repository	Handle insert, update, delete, query.✅
-
-🔹 Build ViewModel	To bridge UI ↔ data safely.✅
-
-🔹 Create basic screens	Home, Scan, Results, History.✅
-
-🔹 Connect OCR to database	After scanning, save extracted receipt text to Room DB. ~ to some extent
-
-🔹 Add navigation	Use Navigation Component or simple intents.✅
-
-
-#### Jan - Feb
-Emotional Input + Analytics Dashboard
-
-Task Details
-
-🔹 Added a regret score screen with a slider (1–10) and a text box for feelings (“Why did I buy this?”).~ slider is completed + text box is there but can be improved ✅
-
-🔹 Linked the regret score to the receipts - Each receipt has 1 emotional entry. ✅
-
-🔹 Added “Did You Know?” popups, added random facts from my literature data. ~ very basic, also needs enhancing ✅
-
-🔹 Built an analytics dashboard that shows expenditure by category, average regret, etc. ~ most products from receipts have been categorised but there can be more added ✅
-
-🔹 Use chart library	MPAndroidChart or Compose Charts. ✅
+### Stats Dashboard
+- Weekly spend trend
+- Category breakdown
+- Average regret trend over time
+- High-regret purchase history
 
 
 
-#### Mar - Apr
-Design, Testing & Polish
 
-Task Details
 
-🔹 Design final UI	Use consistent color palette, icons, typography. ✅
 
-🔹 Add animations	Simple transitions for smooth experience. ✅
 
-🔹 Add splash & onboarding screens	Short intro explaining the app’s purpose. ✅
 
-🔹 Add error handling	Handle OCR failures, blank fields, missing permissions. ✅
 
-🔹 Test on multiple devices	Check performance, layout, and bugs.  - to some extent
 
-🔹 Final demo recording	Record a short walkthrough video for documentation. - video completed ✅ no documentation though 
 
---
---
+
+
+
+
+
+### Tech Stack
+| | Technology | Why |
+|---|---|---|
+| Language | Kotlin | Modern, concise, null-safe |
+| UI | Jetpack Compose + Material 3 | Declarative UI, 2025 design system |
+| Architecture | MVVM + StateFlow | Reactive, testable, lifecycle-safe |
+| Database | Room DB | On-device storage, no user data leaves the phone |
+| AI parsing | Anthropic Claude API | Handles messy real-world receipt formats reliably |
+| AI chat | Anthropic Claude API | Personalised responses using live spending data |
+| OCR | Google ML Kit | Fast, on-device text extraction |
+| Charts | Vico | Smooth, composable chart library |
+| Images | Coil | Async image loading with pinch-to-zoom |
+| Navigation | Jetpack Navigation Compose | Type-safe, single-activity |
+| Async | Kotlin Coroutines + Flow | Structured concurrency throughout |
+
+
+### Architecture 
+The app follows a clean MVVM architecture with a repository pattern separating the database from the UI layer.
+
+```
+app/
+├── MainActivity.kt                  Entry point, receipt scan orchestration
+├── ClaudeReceiptParser.kt           Claude API receipt parsing
+├── AnthropicApiClient.kt            HTTP client for Anthropic API
+├── ImpulseScorer.kt                 On-device impulse scoring engine
+├── ParsedReceipt.kt                 Receipt data model
+│
+├── database/
+│   ├── AppDatabase.kt               Room database, version management
+│   ├── ReceiptRepository.kt         Single source of truth for all data
+│   ├── dao/                         Data Access Objects (6 DAOs)
+│   ├── entities/                    Room entities — Receipt, Item, Goal,
+│   │                                SavingGoal, Emotion, ItemReaction
+│   └── models/                      Query result models (CategorySpend etc.)
+│
+├── navigation/
+│   ├── Screen.kt                    Type-safe navigation routes
+│   └── BottomNavItem.kt             Bottom nav configuration
+│
+├── ui/
+│   ├── AppRoot.kt                   Scaffold, NavHost, bottom nav with FAB
+│   ├── screens/                     All composable screens (13 screens)
+│   ├── charts/                      Vico chart composables
+│   └── theme/                       Material 3 colour scheme and typography
+│
+└── viewmodel/
+    ├── ReceiptViewModel.kt           All receipt/goal/stats state
+    └── SuggestionBotViewModel.kt     KIRA chat state and system prompt
+```
+---
+## Why On-Device Impulse Scoring? 
+The impulse score runs without a network call using written rules. This keeps it fast (instant feedback), consistent (same input always give the same score), and explainable (the users can understand why a purchase is scored HIGH or LOW). Claude is used for conversation purposes, to make users feel comfortable enough to find their underlying trigger for their financial choices.
+
+### Why Room instead of a Remote Database?
+Spending data is sensitive, hence why Room is used, it allows everything to stay on the device. The only data that leaves the phone is a receipt text which is sent for AI parsing, this requires a privacy consent before the first scan. 
+
+
+## Setup
+### Conditions
+- Android Studio Hedgehog or later
+- Android SDK 26+
+- An [Anthropic API key](https://console.anthropic.com)
+
+### Installation
+ 
+**1. Clone the repo**
+```bash
+git clone https://github.com/a-tajarab/ImpulsePurchaseRecoveryKit.git
+```
+ 
+**2. Add your API key**
+ 
+Create `local.properties` in the project root (it is gitignored and will never be committed):
+```
+ANTHROPIC_API_KEY=your_key_here
+```
+ 
+**3. Verify `app/build.gradle.kts` exposes the key to BuildConfig**
+```kotlin
+buildConfigField("String", "ANTHROPIC_API_KEY",
+    "\"${localProperties["ANTHROPIC_API_KEY"] ?: ""}\"")
+```
+ 
+**4. Run**
+ 
+Open in Android Studio and press Run, or:
+```bash
+./gradlew assembleDebug
+```
+---
+## Author
+ 
+**Ayesha Tajarab** - Android Developer
+
 --
 
 
