@@ -31,10 +31,21 @@ KIRA is a Claude-powered conversational assistant that processes your purchase h
 - High-regret purchase history
 
 
+| Home page | Monthly Goal | Receipts Scanned page|
+|:----:|:------------:|:--------------:|
+| <img src="docs/screenshots/home.png" width="250"/> | <img src="docs/screenshots/" width="250"/> | <img src="docs/screenshots/list.png" width="250"/> |
 
+| Gallery | Individual Receipt page | Rate items  |
+|:-----------:|:-----------:|:------------:|
+| <img src="docs/screenshots/gallery.png" width="250"/> | <img src="docs/screenshots/receipt_detail.png" width="250"/> | <img src="docs/screenshots/rate_items.png" width="250"/> |
 
+| Rate Shopping Experience | Statitistics 1 | Statistics 2  |
+|:----------------:|:------------:|:------------:|
+| <img src="docs/screenshots/rate_regret.png" width="250"/> | <img src="docs/screenshots/stats_spending.png" width="250"/> | <img src="docs/screenshots/stats_regret.png" width="250"/> |
 
-
+| Kira | Example of Kira's Response |   
+|:----------------:|:------------:|
+| <img src="docs/screenshots/kira.png" width="250"/> | <img src="docs/screenshots/" width="250"/> 
 
 
 
