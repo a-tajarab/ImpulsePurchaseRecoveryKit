@@ -31,27 +31,25 @@ KIRA is a Claude-powered conversational assistant that processes your purchase h
 - High-regret purchase history
 
 
-| Home page | Monthly Goal | Receipts Scanned page|
+| Home page | Monthly Spending Goal | Mini Goals|
 |:----:|:------------:|:--------------:|
-| <img src="docs/screenshots/home.png" width="250"/> | <img src="docs/screenshots/" width="250"/> | <img src="docs/screenshots/list.png" width="250"/> |
+| <img src="docs/screenshots/home.png" width="250"/> | <img src="docs/screenshots/monthly_goal.png" width="250"/> | <img src="docs/screenshots/monthly_goal2.png" width="250"/> |
 
-| Gallery | Individual Receipt page | Rate items  |
+| Receipts Scanned page | Gallery | Individual Receipt page |
 |:-----------:|:-----------:|:------------:|
-| <img src="docs/screenshots/gallery.png" width="250"/> | <img src="docs/screenshots/receipt_detail.png" width="250"/> | <img src="docs/screenshots/rate_items.png" width="250"/> |
+| <img src="docs/screenshots/list.png" width="250"/> | <img src="docs/screenshots/gallery.png" width="250"/> | <img src="docs/screenshots/receipt_detail.png" width="250"/> |
 
-| Rate Shopping Experience | Statitistics 1 | Statistics 2  |
-|:----------------:|:------------:|:------------:|
-| <img src="docs/screenshots/rate_regret.png" width="250"/> | <img src="docs/screenshots/stats_spending.png" width="250"/> | <img src="docs/screenshots/stats_regret.png" width="250"/> |
-
-| Kira | Example of Kira's Response |   
+| Rate items | Rate Shopping Experience | 
 |:----------------:|:------------:|
-| <img src="docs/screenshots/kira.png" width="250"/> | <img src="docs/screenshots/" width="250"/> 
+| <img src="docs/screenshots/rate_items.png" width="250"/> | <img src="docs/screenshots/rate_regret.png" width="250"/> | 
 
+| Statitistics 1| Statistics 2 | Statistics 3 | 
+|:----------------:|:------------:|:------------:|
+| <img src="docs/screenshots/stats_spending.png" width="250"/> | <img src="docs/screenshots/stats_regret.png" width="250"/> |  <img src="docs/screenshots/stats_categories.png" width="250"/> | 
 
-
-
-
-
+| Kira | Example of Kira's Response | 
+|:------------:|:------------:|
+| <img src="docs/screenshots/kira.png" width="250"/> | <img src="docs/screenshots/kira2.png" width="250"/> |
 
 
 
