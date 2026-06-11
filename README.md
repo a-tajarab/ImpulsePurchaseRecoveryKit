@@ -2,7 +2,7 @@
 A smart Android spending coach that helps you scan receipts, understand your impulse patterns, make intentional financial decision - powered by Claude AI and ML Kit OCR. 
 
 ### What is it? 
-Most budgeting apps track what you spent. This one tracks how you feel about it, because understanding the emotional side of spending is just as important as the financial side.
+Most budgeting apps track what you spent. This one tracks how you feel about it, because understanding the emotional side of spending is just as equally important as analysing the financial side.
 
 The Impulse Purchase Recovery Kit combines receipt scanning, AI-powered analysis, emotional reflection, and a conversational spending coach all in one app. The goal is not to stop you spending, it's to make spending a conscious choice rather than a reflex.
 
@@ -15,7 +15,7 @@ Point your camera at any receipt. ML Kit OCR extracts the text on the device ins
 Every receipt gets an automatic impulse risk score from 0-100, calculated by the device without a network call. The score uses time of day, category, spend amount, and purchase patterns to label each receipt LOW, MEDIUM, or HIGH giving you an instant honest read of whether a purchase was driven by need or impulse. 
 
 ### Regret Tracking
-Rate how you feel about each purchase from 1-10. React to individual items (happy/ok/regret). The app tracks whether your regret trends up or down over a period of time, which is more useful than a raw spend figure. The regret tracking is designed and built to find an underlying trigger behind your impulsive buying decisions. 
+Rate how you feel about each purchase from 1-10. React to individual items (happy/ok/regret). The app tracks whether your regret trends up or down over a period of time, which comes more of use than a raw spend figure. The regret tracking is designed and built to find an underlying trigger behind your impulsive buying decisions. 
 
 ### Monthly Budget & Saving Goals
 Set a monthly spending limit, visualised as a donut that shifts from green to amber to red as you approach your limit. Add as many saving goals as you want; 'holiday, laptop, trainers' etc. and rank them by priority. The app estimates how many months away each goal is based on your current saving rate.
