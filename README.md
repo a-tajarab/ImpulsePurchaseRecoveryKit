@@ -217,11 +217,5 @@ Open in Android Studio and press Run, or:
 ## Author
  
 **Ayesha Tajarab** - Android Developer
-
----
-
-## Author
- 
-**Ayesha Tajarab** - Android Developer
 #### LinkedIn - (https://www.linkedin.com/in/ayesha-tajarab-aa329b24b)
 ---
