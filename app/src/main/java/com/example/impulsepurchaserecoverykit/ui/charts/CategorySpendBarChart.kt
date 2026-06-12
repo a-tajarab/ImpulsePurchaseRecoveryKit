@@ -25,6 +25,29 @@ import com.example.impulsepurchaserecoverykit.ui.theme.Terra500
 import com.example.impulsepurchaserecoverykit.ui.theme.Terra700
 import com.example.impulsepurchaserecoverykit.ui.theme.Warning700
 
+/**
+ * Horizontal bar chart composable displaying spending totals grouped by category.
+ *
+ * Renders one bar per [CategorySpend] entry, scaled proportionally against the
+ * highest-spending category so the largest bar always fills the full available
+ * width. Each bar is colour-coded by cycling through the app's theme palette,
+ * making it easy to visually distinguish categories at a glance.
+ *
+ * The category label is rendered inside the bar when the bar is wide enough
+ * (fraction > 0.25 of the total width), and outside the bar to the right
+ * when the bar is too narrow to fit the text — ensuring the label is always
+ * legible regardless of the spend amount.
+ *
+ * The spend value is shown to the right of each bar, formatted as £X.XX for
+ * values under £1,000 and £X.Xk for values of £1,000 or more.
+ *
+ * Used on the Categories tab of the Stats screen to show the user where
+ * their money is going each month by item type.
+ *
+ * @param data The list of [CategorySpend] entries to render, one bar per entry.
+ *             The composable renders nothing if this list is empty.
+ * @param modifier Optional [Modifier] applied to the root [Column]
+ */
 @Composable
 fun CategorySpendBarChart(
     data: List<CategorySpend>,
@@ -32,7 +55,10 @@ fun CategorySpendBarChart(
 ) {
     if (data.isEmpty()) return
 
+    // Scale all bars relative to the highest-spending category
     val maxValue = data.maxOf { it.total }.takeIf { it > 0 } ?: 1.0
+
+    // Colour palette cycled across bars — sourced from theme tokens, never hardcoded
     val barColors = listOf(Teal700, Teal500, Terra500, Warning700, Teal200, Teal700)
 
     Column(
@@ -40,8 +66,12 @@ fun CategorySpendBarChart(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         data.forEachIndexed { index, row ->
+            // fraction is the bar width as a proportion of the maximum, clamped to a
+            // minimum of 0.03 so even tiny values remain visible as a sliver
             val fraction = (row.total / maxValue).toFloat().coerceIn(0.03f, 1f)
             val color = barColors[index % barColors.size]
+
+            // Format the spend value — use 'k' suffix for values >= £1,000
             val valueLabel = if (row.total >= 1000)
                 "£${String.format("%.1f", row.total / 1000)}k"
             else
@@ -57,6 +87,7 @@ fun CategorySpendBarChart(
                         .weight(1f)
                         .height(36.dp)
                 ) {
+                    // Background track — full-width surfaceVariant pill behind the bar
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -67,6 +98,7 @@ fun CategorySpendBarChart(
                         modifier = Modifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Coloured bar — width proportional to the category's spend fraction
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(fraction)
@@ -75,6 +107,7 @@ fun CategorySpendBarChart(
                                 .background(color),
                             contentAlignment = Alignment.CenterStart
                         ) {
+                            // Label inside the bar — only shown when bar is wide enough
                             if (fraction > 0.25f) {
                                 Text(
                                     text = row.category.replaceFirstChar { it.uppercase() },
@@ -87,6 +120,7 @@ fun CategorySpendBarChart(
                                 )
                             }
                         }
+                        // Label outside the bar — shown when bar is too narrow for inline text
                         if (fraction <= 0.25f) {
                             Spacer(Modifier.width(6.dp))
                             Text(
@@ -101,6 +135,7 @@ fun CategorySpendBarChart(
                     }
                 }
 
+                // Spend value shown to the right of each bar in the matching category colour
                 Text(
                     text = valueLabel,
                     fontSize = 11.sp,

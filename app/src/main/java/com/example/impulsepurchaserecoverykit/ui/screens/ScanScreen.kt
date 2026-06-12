@@ -38,11 +38,37 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
+/**
+ * Receipt scanning screen that allows the user to select or capture a receipt
+ * image for processing.
+ *
+ * ScanScreen operates in two visual modes depending on the user's interaction:
+ *
+ * 1. **Gallery mode** (default) — displays a 3-column grid of the 150 most
+ *    recent images from the device photo library, with a camera button in the
+ *    top bar for taking a new photo and a menu option to browse the full file
+ *    system. Tapping any thumbnail switches to preview mode.
+ *
+ * 2. **Preview mode** — displays the selected image in a full-screen swipeable
+ *    [HorizontalPager], allowing the user to review the image before scanning.
+ *    A bottom bar provides a "Scan this" button to confirm and a "Gallery"
+ *    button to return to the grid.
+ *
+ * The screen handles runtime permissions for photo library access and camera
+ * access, adapting the required permission based on the Android API level
+ * (READ_MEDIA_IMAGES on API 33+, READ_EXTERNAL_STORAGE on older versions).
+ * If permissions are not granted, a [PermissionRequestScreen] is shown instead.
+ *
+ * @param onScanReceipt Callback invoked with the [Uri] of the confirmed receipt
+ *                      image when the user taps "Scan this". The URI is passed
+ *                      back to [MainActivity] to begin the OCR and AI parsing pipeline.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
     val context = LocalContext.current
 
+    // Select the correct permission based on the device's Android version
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
     } else {
@@ -50,14 +76,18 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
     }
 
     val permissionState = rememberPermissionState(permission)
-
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
 
-
+    // List of image URIs loaded from the device photo library
     var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    // Index of the currently selected image; -1 means no image is selected (gallery mode)
     var selectedIndex by remember { mutableIntStateOf(-1) }
+
+    // URI of the photo taken by the camera, held temporarily until it is added to the grid
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
+    // Load recent images from the device whenever photo library permission is granted
     LaunchedEffect(permissionState.status.isGranted) {
         if (permissionState.status.isGranted) {
             imageUris = withContext(Dispatchers.IO) {
@@ -66,7 +96,7 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
         }
     }
 
-    // If permission not granted yet — show permission screen
+    // Show the permission request screen if photo library access has not been granted
     if (!permissionState.status.isGranted) {
         PermissionRequestScreen(
             shouldShowRationale = permissionState.status.shouldShowRationale,
@@ -74,8 +104,10 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
         )
         return
     }
+
     val inPreview = selectedIndex >= 0 && selectedIndex < imageUris.size
 
+    // Launcher for the system camera — prepends the captured photo to the grid on success
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
@@ -85,11 +117,13 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
         }
     }
 
+    /**
+     * Creates a temporary file in the app's cache directory, generates a
+     * FileProvider URI for it, and launches the system camera. The captured
+     * photo is written to this URI, then prepended to the image grid.
+     */
     fun launchCamera() {
-        val photoFile = File.createTempFile(
-            "receipt_", ".jpg",
-            context.cacheDir
-        )
+        val photoFile = File.createTempFile("receipt_", ".jpg", context.cacheDir)
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
@@ -99,6 +133,7 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
         cameraLauncher.launch(uri)
     }
 
+    // Launcher for the system file picker — prepends the selected file to the grid
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -110,13 +145,16 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
             }
         }
     }
+
     if (!inPreview) {
+        // ── Gallery mode ──────────────────────────────────────────────────
         Scaffold(
             topBar = {
                 var menuExpanded by remember { mutableStateOf(false) }
                 TopAppBar(
                     title = { Text("Choose a receipt photo") },
                     actions = {
+                        // Camera button — requests permission if not already granted
                         IconButton(
                             onClick = {
                                 if (cameraPermissionState.status.isGranted) {
@@ -152,25 +190,22 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
             }
         ) { padding ->
             if (imageUris.isEmpty()) {
-                Box(Modifier
-                    .fillMaxSize()
-                    .padding(padding),
+                // Empty state — shown when no photos are found or permission was just granted
+                Box(
+                    Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ){
+                    ) {
                         Icon(
                             Icons.Default.PhotoLibrary,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            "No photos found",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Text("No photos found", style = MaterialTheme.typography.titleMedium)
                         Text(
                             "Try using 'Browse files / albums' from the menu above",
                             style = MaterialTheme.typography.bodySmall,
@@ -178,7 +213,6 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 32.dp)
                         )
-
                         OutlinedButton(
                             onClick = {
                                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -187,24 +221,20 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
                                 }
                                 filePickerLauncher.launch(intent)
                             }
-                        ) {
-                            Text("Browse files")
-                        }
+                        ) { Text("Browse files") }
                     }
                 }
             } else {
+                // 3-column thumbnail grid of recent device photos
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = Modifier
-                        .padding(padding)
-                        .fillMaxSize(),
+                    modifier = Modifier.padding(padding).fillMaxSize(),
                     contentPadding = PaddingValues(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(imageUris.size) { index ->
                         val uri = imageUris[index]
-
                         ElevatedCard(
                             modifier = Modifier
                                 .aspectRatio(1f)
@@ -226,11 +256,14 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
             }
         }
     } else {
+        // ── Preview mode ──────────────────────────────────────────────────
         val pagerState = rememberPagerState(initialPage = selectedIndex) { imageUris.size }
 
+        // Keep selectedIndex in sync as the user swipes between images
         LaunchedEffect(pagerState.currentPage) {
             selectedIndex = pagerState.currentPage
         }
+
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -258,6 +291,7 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
                             modifier = Modifier.weight(1f)
                         ) { Text("Gallery") }
 
+                        // Confirms the selected image and triggers the scan pipeline
                         Button(
                             onClick = { onScanReceipt(currentUri) },
                             modifier = Modifier.weight(1f)
@@ -266,11 +300,10 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
                 }
             }
         ) { padding ->
+            // Full-screen swipeable pager for previewing the selected image
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
+                modifier = Modifier.padding(padding).fillMaxSize()
             ) { page ->
                 val uri = imageUris[page]
                 AndroidView(
@@ -288,16 +321,25 @@ fun ScanScreen(onScanReceipt: (Uri) -> Unit) {
     }
 }
 
-// ── Permission request screen ──
+/**
+ * Permission request screen shown when the user has not yet granted photo
+ * library access.
+ *
+ * Displays an explanation of why the permission is needed and a button to
+ * trigger the system permission request dialog. If the user has previously
+ * denied the permission, a rationale message is shown instead directing them
+ * to grant access manually in their device settings.
+ *
+ * @param shouldShowRationale True if the user has previously denied the permission
+ *                            and a rationale explanation should be shown
+ * @param onRequestPermission Callback invoked when the user taps the permission button
+ */
 @Composable
 private fun PermissionRequestScreen(
     shouldShowRationale: Boolean,
     onRequestPermission: () -> Unit
 ) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -309,42 +351,41 @@ private fun PermissionRequestScreen(
                 modifier = Modifier.size(72.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-
-            Text(
-                "Photo access needed",
-                style = MaterialTheme.typography.headlineSmall
-            )
-
+            Text("Photo access needed", style = MaterialTheme.typography.headlineSmall)
             Text(
                 if (shouldShowRationale) {
                     "We need access to your photos to scan receipts. " +
                             "Please grant photo access in your device settings."
                 } else {
-                    "To scan receipts, the app needs permission to " +
-                            "access your photo library."
+                    "To scan receipts, the app needs permission to access your photo library."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            Button(
-                onClick = onRequestPermission,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Button(onClick = onRequestPermission, modifier = Modifier.fillMaxWidth()) {
                 Text(if (shouldShowRationale) "Open Settings" else "Grant Access")
             }
         }
     }
 }
-private fun loadRecentImages(
-    context: android.content.Context,
-    limit: Int
-): List<Uri> {
+
+/**
+ * Queries the device's MediaStore to retrieve the URIs of the most recently
+ * added images from the external photo library.
+ *
+ * Runs on a background thread via [Dispatchers.IO] — always call from a
+ * coroutine context. Results are sorted by date added descending so the
+ * most recent photos appear first in the gallery grid.
+ *
+ * @param context The application context used to access the ContentResolver
+ * @param limit The maximum number of image URIs to return
+ * @return A list of [Uri] objects pointing to the most recent device images,
+ *         capped at [limit] entries
+ */
+private fun loadRecentImages(context: android.content.Context, limit: Int): List<Uri> {
     val uris = mutableListOf<Uri>()
-    val projection = arrayOf(
-        MediaStore.Images.Media._ID
-    )
+    val projection = arrayOf(MediaStore.Images.Media._ID)
     val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
     context.contentResolver.query(

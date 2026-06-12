@@ -14,12 +14,65 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Describes the reason why OCR or receipt parsing failed.
+ *
+ * Used to determine which error message, emoji, and action buttons are shown
+ * on the [OcrFailureScreen]. Each value represents a distinct stage of the
+ * scanning pipeline where failure can occur.
+ */
 enum class OcrFailureReason {
-    NO_TEXT_FOUND,       // OCR returned empty
-    NO_ITEMS_PARSED,     // OCR worked but parser found no items
-    INCOMPLETE_RECEIPT   // Items found but missing total/store
+
+    /**
+     * ML Kit OCR ran successfully but returned no text from the image.
+     * Typically caused by a blurry photo, poor lighting, or an image
+     * that does not contain a receipt.
+     */
+    NO_TEXT_FOUND,
+
+    /**
+     * OCR successfully extracted text but the Claude AI parser could not
+     * identify any individual line items within it.
+     * Typically caused by an unusual or non-standard receipt format.
+     */
+    NO_ITEMS_PARSED,
+
+    /**
+     * Items were parsed successfully but key fields such as the store name
+     * or total amount are missing from the result.
+     * The receipt is saved to the database with whatever data was found,
+     * and the user is directed to edit it from the Receipts screen.
+     */
+    INCOMPLETE_RECEIPT
 }
 
+/**
+ * Error screen displayed when the receipt scanning or parsing pipeline fails.
+ *
+ * Shows a contextual error message, emoji, and explanation tailored to the
+ * specific [OcrFailureReason] — so the user understands exactly what went
+ * wrong and what they can do about it. A tips card with photography advice
+ * is shown for all failure types to help the user avoid the same issue
+ * on their next scan.
+ *
+ * Three action buttons are offered depending on the failure reason:
+ * - **Try another image** — always shown, navigates back to [ScanScreen]
+ * - **Enter details manually** — shown for [OcrFailureReason.NO_TEXT_FOUND]
+ *   and [OcrFailureReason.NO_ITEMS_PARSED] only, as [OcrFailureReason.INCOMPLETE_RECEIPT]
+ *   has already saved a partial receipt that the user can edit directly
+ * - **Go back to home** — always shown, dismisses the error and returns to [HomeScreen]
+ *
+ * @param paddingValues Padding applied by the parent [Scaffold] to avoid
+ *                      overlap with system bars and the bottom navigation bar
+ * @param reason The [OcrFailureReason] that caused the scan to fail,
+ *               used to select the appropriate message and button set
+ * @param onTryAgain Callback invoked when the user taps "Try another image" —
+ *                   navigates back to [ScanScreen] to select a new photo
+ * @param onManualEntry Callback invoked when the user taps "Enter details manually" —
+ *                      navigates to [ManualEntryScreen] to log the purchase by hand
+ * @param onDismiss Callback invoked when the user taps "Go back to home" —
+ *                  dismisses the error screen and returns to [HomeScreen]
+ */
 @Composable
 fun OcrFailureScreen(
     paddingValues: PaddingValues,
@@ -28,6 +81,7 @@ fun OcrFailureScreen(
     onManualEntry: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    // Select the emoji, title and message based on the specific failure reason
     val (emoji, title, message) = when (reason) {
         OcrFailureReason.NO_TEXT_FOUND -> Triple(
             "📷",
@@ -60,11 +114,7 @@ fun OcrFailureScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = emoji,
-            fontSize = 72.sp,
-            textAlign = TextAlign.Center
-        )
+        Text(text = emoji, fontSize = 72.sp, textAlign = TextAlign.Center)
 
         Spacer(Modifier.height(24.dp))
 
@@ -87,7 +137,7 @@ fun OcrFailureScreen(
 
         Spacer(Modifier.height(32.dp))
 
-        // Tips card
+        // Tips card — shown for all failure reasons to help improve future scans
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.elevatedCardColors(
@@ -128,11 +178,8 @@ fun OcrFailureScreen(
 
         Spacer(Modifier.height(32.dp))
 
-        // Action buttons
-        Button(
-            onClick = onTryAgain,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        // Primary action — always available regardless of failure reason
+        Button(onClick = onTryAgain, modifier = Modifier.fillMaxWidth()) {
             Icon(
                 Icons.Default.CameraAlt,
                 contentDescription = null,
@@ -143,11 +190,11 @@ fun OcrFailureScreen(
 
         Spacer(Modifier.height(12.dp))
 
+        // Manual entry — only shown when no receipt was saved at all.
+        // Hidden for INCOMPLETE_RECEIPT because a partial record already exists
+        // in the database and the user should edit that rather than create a duplicate.
         if (reason != OcrFailureReason.INCOMPLETE_RECEIPT) {
-            OutlinedButton(
-                onClick = onManualEntry,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            OutlinedButton(onClick = onManualEntry, modifier = Modifier.fillMaxWidth()) {
                 Icon(
                     Icons.Default.Edit,
                     contentDescription = null,
@@ -159,10 +206,8 @@ fun OcrFailureScreen(
             Spacer(Modifier.height(12.dp))
         }
 
-        TextButton(
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        // Dismiss — always available, returns to home without taking any action
+        TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
             Text("Go back to home")
         }
     }

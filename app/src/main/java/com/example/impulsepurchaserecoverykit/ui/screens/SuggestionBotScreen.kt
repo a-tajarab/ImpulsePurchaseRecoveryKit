@@ -33,9 +33,24 @@ import com.example.impulsepurchaserecoverykit.viewmodel.SuggestionBotViewModel
 import com.example.impulsepurchaserecoverykit.ui.theme.*
 import kotlinx.coroutines.launch
 
-// Each mood: label, emoji (stored but not displayed), response
+/**
+ * A single mood option shown in the [MoodCheckInCard] at the start of a KIRA session.
+ *
+ * The emoji is stored for potential future use but is not currently displayed — mood
+ * chips show only the text label. The response string is shown in a [MoodResponseBubble]
+ * immediately after the user selects this mood, before the conversation begins.
+ *
+ * @property label The text label shown on the mood chip, for example "Stressed"
+ * @property emoji The emoji associated with this mood — stored but not currently rendered
+ * @property response The pre-written KIRA response shown when this mood is selected,
+ *                    providing immediate acknowledgement before the user asks a question
+ */
 private data class KiraMoodOption(val label: String, val emoji: String, val response: String)
 
+/**
+ * The six mood options displayed in the [MoodCheckInCard], arranged in two rows of three.
+ * Each option maps to a pre-written contextual response from KIRA.
+ */
 private val moodOptions = listOf(
     KiraMoodOption("Stressed",  "😰", "Stressed shoppers spend 34% more on impulse. Want to talk about it?"),
     KiraMoodOption("Bored",     "😑", "Boredom buying is one of the top impulse triggers. Let's find a better outlet!"),
@@ -45,34 +60,79 @@ private val moodOptions = listOf(
     KiraMoodOption("Fine",      "😌", "Good to hear! Let's take a look at your spending and keep it that way.")
 )
 
-// Gradient used for the KIRA avatar and header
+/**
+ * The gradient used for the KIRA header background and avatar.
+ * Transitions from near-black midnight ([Teal900]) to the primary navy ([Teal700]).
+ */
 private val kiraGradient = listOf(Teal900, Teal700)
 
+/**
+ * KIRA (Kind Impulse Recovery Advisor) conversational chat screen.
+ *
+ * The screen is a full-screen [Scaffold] with a fixed gradient header, a scrollable
+ * [LazyColumn] message list, and a bottom input bar. The conversation follows a
+ * structured onboarding flow before opening to free-form chat:
+ *
+ * **Conversation flow:**
+ * 1. KIRA's greeting message is displayed first — pre-populated with the user's real
+ *    spending data (receipt count, total spend, avg regret, most visited store)
+ * 2. A [MoodCheckInCard] appears below the greeting — the user selects their current
+ *    mood from six labelled chips
+ * 3. A [MoodResponseBubble] acknowledges the selected mood with a contextual response
+ * 4. Four [KiraQuickSuggestionsCard] prompts appear — only shown if no second message
+ *    has been sent yet, to give the user a starting point
+ * 5. Free-form conversation continues via the input bar
+ *
+ * The mood must be selected before the conversation opens — this gates access to the
+ * quick suggestions and further messages. The mood selection is local UI state only
+ * and is not persisted to the database.
+ *
+ * **Header** — a gradient midnight navy bar with a 52dp rounded avatar containing
+ * the "K" initial, the KIRA title, and a pulsing green online dot driven by
+ * [rememberInfiniteTransition].
+ *
+ * **Input bar** — a pill-shaped text field with an [ArrowUpward] send button.
+ * The button uses a warm stone gradient when active and a muted surface colour
+ * when the field is empty. Sending via keyboard IME action is also supported.
+ *
+ * The [LazyColumn] auto-scrolls to the latest message via [LaunchedEffect] whenever
+ * the message count changes. API errors are shown as [Snackbar] notifications.
+ *
+ * @param paddingValues Padding applied by the parent [Scaffold]
+ * @param botViewModel The [SuggestionBotViewModel] driving the conversation state.
+ *                     Defaults to a new instance via [viewModel] if not provided.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SuggestionBotScreen(
     paddingValues: PaddingValues,
     botViewModel: SuggestionBotViewModel = viewModel()
 ) {
-    val messages    by botViewModel.messages.collectAsState()
-    val isLoading   by botViewModel.isLoading.collectAsState()
-    val error       by botViewModel.error.collectAsState()
+    val messages   by botViewModel.messages.collectAsState()
+    val isLoading  by botViewModel.isLoading.collectAsState()
+    val error      by botViewModel.error.collectAsState()
 
-    var inputText          by remember { mutableStateOf("") }
-    val listState          = rememberLazyListState()
-    val scope              = rememberCoroutineScope()
-    val snackbarHostState  = remember { SnackbarHostState() }
-    var selectedMood       by remember { mutableStateOf<String?>(null) }
-    var moodResponseShown  by remember { mutableStateOf(false) }
+    var inputText         by remember { mutableStateOf("") }
+    val listState         = rememberLazyListState()
+    val scope             = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
+    // selectedMood gates the conversation — must be set before messages beyond the greeting appear
+    var selectedMood      by remember { mutableStateOf<String?>(null) }
+    // moodResponseShown prevents the mood response bubble from re-rendering on recomposition
+    var moodResponseShown by remember { mutableStateOf(false) }
+
+    // Auto-scroll to the latest message whenever the message list grows
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
     }
+
+    // Show API errors as a Snackbar, then clear the error state
     LaunchedEffect(error) {
         error?.let { snackbarHostState.showSnackbar(it); botViewModel.clearError() }
     }
 
-    // Pulse animation for the online dot
+    // Pulsing alpha animation for the green online dot in the header
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.4f, targetValue = 1f,
@@ -83,23 +143,20 @@ fun SuggestionBotScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            // ── KIRA Header ───────────────────────────────────────────────
+            // ── KIRA gradient header ──────────────────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Brush.verticalGradient(kiraGradient))
                     .padding(
-                        top  = paddingValues.calculateTopPadding() + 16.dp,
+                        top    = paddingValues.calculateTopPadding() + 16.dp,
                         bottom = 20.dp,
-                        start = 20.dp,
-                        end   = 20.dp
+                        start  = 20.dp,
+                        end    = 20.dp
                     )
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    // Gradient avatar with shadow
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    // 52dp rounded avatar with gradient background and drop shadow
                     Box(
                         modifier = Modifier
                             .size(52.dp)
@@ -112,104 +169,59 @@ fun SuggestionBotScreen(
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            "KIRA",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = 1.sp
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            // Pulsing online dot
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF4CAF50).copy(alpha = pulseAlpha))
-                            )
-                            Text(
-                                "Spending Intelligence · Online",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color.White.copy(alpha = 0.75f),
-                                fontWeight = FontWeight.Medium
-                            )
+                        Text("KIRA", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = 1.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            // Pulsing green online dot — alpha oscillates between 0.4 and 1.0
+                            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF4CAF50).copy(alpha = pulseAlpha)))
+                            Text("Spending Intelligence · Online", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.75f), fontWeight = FontWeight.Medium)
                         }
                     }
                 }
             }
         },
         bottomBar = {
-            // ── Input Bar ─────────────────────────────────────────────────
+            // ── Input bar ─────────────────────────────────────────────────
+            // canSend prevents sending blank messages or sending while a response is loading
             val canSend = inputText.isNotBlank() && !isLoading
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .imePadding()
-            ) {
+            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).imePadding()) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .padding(bottom = paddingValues.calculateBottomPadding()),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).padding(bottom = paddingValues.calculateBottomPadding()),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Pill-shaped text field
+                    // Pill-shaped text field — supports up to 3 lines before scrolling
                     OutlinedTextField(
                         value = inputText,
                         onValueChange = { inputText = it },
-                        placeholder = {
-                            Text(
-                                "Ask KIRA anything...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
-                        },
+                        placeholder = { Text("Ask KIRA anything...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
                         modifier = Modifier.weight(1f),
                         maxLines = 3,
                         shape = RoundedCornerShape(24.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor   = Teal700,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                        ),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Teal700, unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = {
-                            if (canSend) {
-                                botViewModel.sendMessage(inputText.trim()); inputText = ""
-                                scope.launch { listState.animateScrollToItem(messages.size) }
-                            }
+                            if (canSend) { botViewModel.sendMessage(inputText.trim()); inputText = ""; scope.launch { listState.animateScrollToItem(messages.size) } }
                         })
                     )
 
-                    // Send button — terracotta when active, muted when empty
+                    // Circular send button — warm stone gradient when active, muted when empty
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(if (canSend) Brush.linearGradient(listOf(Terra500, Terra700)) else Brush.linearGradient(listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant))),
+                            .background(
+                                if (canSend) Brush.linearGradient(listOf(Terra500, Terra700))
+                                else Brush.linearGradient(listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant))
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         IconButton(
-                            onClick = {
-                                if (canSend) {
-                                    botViewModel.sendMessage(inputText.trim()); inputText = ""
-                                    scope.launch { listState.animateScrollToItem(messages.size) }
-                                }
-                            },
+                            onClick = { if (canSend) { botViewModel.sendMessage(inputText.trim()); inputText = ""; scope.launch { listState.animateScrollToItem(messages.size) } } },
                             enabled = canSend
                         ) {
-                            Icon(
-                                Icons.Default.ArrowUpward,
-                                contentDescription = "Send",
-                                tint = if (canSend) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Icon(Icons.Default.ArrowUpward, contentDescription = "Send", tint = if (canSend) Color.White else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(22.dp))
                         }
                     }
                 }
@@ -219,24 +231,22 @@ fun SuggestionBotScreen(
     ) { innerPadding ->
         LazyColumn(
             state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            // First KIRA message
+            // KIRA's greeting — always the first item (messages[0])
             items(messages.take(1)) { message -> KiraMessageBubble(message = message) }
 
-            // Mood check-in (shown after first message, before mood is selected)
+            // Mood check-in — shown once, below the greeting, until the user selects a mood
             if (messages.isNotEmpty() && selectedMood == null) {
                 item(key = "mood-checkin") {
                     MoodCheckInCard(onMoodSelected = { selectedMood = it })
                 }
             }
 
-            // Mood response
+            // Mood response bubble — shown once after mood selection, then moodResponseShown
+            // is set to true via LaunchedEffect to prevent it reappearing on recomposition
             if (selectedMood != null && !moodResponseShown) {
                 item(key = "mood_response") {
                     val option = moodOptions.firstOrNull { it.label == selectedMood }
@@ -245,11 +255,12 @@ fun SuggestionBotScreen(
                 }
             }
 
-            // Rest of conversation
+            // Remaining conversation messages and quick suggestions — gated behind mood selection
             if (selectedMood != null) {
                 items(messages.drop(1), key = { "msg_${it.hashCode()}" }) { message ->
                     KiraMessageBubble(message = message)
                 }
+                // Quick suggestions shown only when the conversation is still at the greeting stage
                 if (messages.size == 1) {
                     item(key = "quick_suggestions") {
                         KiraQuickSuggestionsCard(onSuggestionClick = { suggestion ->
@@ -260,6 +271,7 @@ fun SuggestionBotScreen(
                 }
             }
 
+            // Animated typing indicator — shown while waiting for the API response
             if (isLoading) {
                 item(key = "typing") { KiraTypingIndicator() }
             }
@@ -267,33 +279,31 @@ fun SuggestionBotScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mood Check-In Card
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * Mood check-in card shown below KIRA's greeting message at the start of every session.
+ *
+ * Displays six mood options as label-only chips arranged in two rows of three.
+ * The selected mood is passed to [onMoodSelected] and stored in the parent composable
+ * to gate access to further conversation. Selecting a mood dismisses this card and
+ * immediately shows a [MoodResponseBubble] with a contextual response.
+ *
+ * The mood chips use emoji in the [KiraMoodOption] model but display only the
+ * text label — the emoji field is retained for potential future use.
+ *
+ * @param onMoodSelected Callback invoked with the label string of the selected mood
+ */
 @Composable
 private fun MoodCheckInCard(onMoodSelected: (String) -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 46.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 46.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                "How are you feeling today?",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                "This helps me give better advice",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text("How are you feeling today?", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text("This helps me give better advice", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        // 2 rows of 3 mood chips
+        // Two rows of 3 chips — indented 46dp to align with the message bubble column
         val rows = moodOptions.chunked(3)
         rows.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -306,12 +316,7 @@ private fun MoodCheckInCard(onMoodSelected: (String) -> Unit) {
                             .background(Teal700.copy(alpha = 0.05f))
                             .padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
-                        Text(
-                            option.label,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Teal700
-                        )
+                        Text(option.label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Teal700)
                     }
                 }
             }
@@ -319,22 +324,29 @@ private fun MoodCheckInCard(onMoodSelected: (String) -> Unit) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Mood Response Bubble
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * KIRA's response bubble shown immediately after the user selects a mood.
+ *
+ * Displays two elements stacked vertically:
+ * 1. A warm stone pill badge reading "Feeling [mood] — got it" to acknowledge
+ *    the selected mood before launching into a response
+ * 2. A [KiraBubbleBox] containing the pre-written contextual response from
+ *    [KiraMoodOption.response]
+ *
+ * This composable is shown exactly once per session via [moodResponseShown] state
+ * in [SuggestionBotScreen] — a [LaunchedEffect] sets the flag to true after the
+ * first render to prevent it reappearing on recomposition.
+ *
+ * @param option The [KiraMoodOption] whose label and response should be displayed
+ */
 @Composable
 private fun MoodResponseBubble(option: KiraMoodOption) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.Bottom
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.Bottom) {
         KiraAvatar(size = 32)
         Spacer(Modifier.width(8.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            // Mood acknowledgement pill
+            // Mood acknowledgement pill — warm stone border and background
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
@@ -342,14 +354,9 @@ private fun MoodResponseBubble(option: KiraMoodOption) {
                     .border(1.dp, Terra500.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
                     .padding(horizontal = 12.dp, vertical = 5.dp)
             ) {
-                Text(
-                    "Feeling ${option.label} — got it",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Terra700
-                )
+                Text("Feeling ${option.label} — got it", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Terra700)
             }
-            // Response bubble
+            // Pre-written contextual response for the selected mood
             KiraBubbleBox {
                 Text(option.response, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, lineHeight = 20.sp)
             }
@@ -357,10 +364,21 @@ private fun MoodResponseBubble(option: KiraMoodOption) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Message Bubble
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * A single chat message bubble for either the user or KIRA.
+ *
+ * The layout direction adapts based on [ChatMessage.role]:
+ * - **User messages** — aligned to the right with a midnight navy teal gradient
+ *   bubble and a circular "U" avatar on the far right
+ * - **KIRA messages** — aligned to the left with a [KiraBubbleBox] (white surface
+ *   with a teal left accent bar) and a [KiraAvatar] on the far left
+ *
+ * The bubble corner radii follow the standard messaging UI convention — the corner
+ * nearest the avatar has a smaller radius (4dp) to create the appearance of a
+ * speech tail pointing toward the sender's avatar.
+ *
+ * @param message The [ChatMessage] to display, containing the role and content text
+ */
 @Composable
 private fun KiraMessageBubble(message: ChatMessage) {
     val isUser = message.role == "user"
@@ -376,7 +394,7 @@ private fun KiraMessageBubble(message: ChatMessage) {
         }
 
         if (isUser) {
-            // User bubble — teal gradient
+            // User bubble — midnight teal gradient, flat bottom-right corner (speech tail)
             Box(
                 modifier = Modifier
                     .widthIn(max = 270.dp)
@@ -387,18 +405,12 @@ private fun KiraMessageBubble(message: ChatMessage) {
                 Text(message.content, color = Color.White, style = MaterialTheme.typography.bodyMedium, lineHeight = 20.sp)
             }
             Spacer(Modifier.width(8.dp))
-            // User avatar
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
+            // User avatar — primary container circle with "U" initial
+            Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
                 Text("U", fontSize = 14.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         } else {
-            // KIRA bubble — surface with left accent border
+            // KIRA bubble — white surface with left teal accent, flat top-left corner (speech tail)
             KiraBubbleBox {
                 Text(message.content, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium, lineHeight = 20.sp)
             }
@@ -406,15 +418,23 @@ private fun KiraMessageBubble(message: ChatMessage) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Animated Typing Indicator
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * Animated three-dot typing indicator shown while KIRA is generating a response.
+ *
+ * Three 7dp circular dots bounce on the Y axis with a 180ms stagger between each,
+ * creating a wave effect. The animation uses [rememberInfiniteTransition] with
+ * [StartOffset] to shift the start time of each dot's animation independently.
+ * Each dot oscillates between Y = 0 (resting) and Y = -6 (raised) using
+ * [FastOutSlowInEasing] for a natural bounce feel.
+ *
+ * The dots are rendered inside a [KiraBubbleBox]-shaped container to visually
+ * match the style of an incoming KIRA message.
+ */
 @Composable
 private fun KiraTypingIndicator() {
     val infiniteTransition = rememberInfiniteTransition(label = "dots")
 
-    // Three dots with staggered bounce — each animates Y offset with delay
+    // Three dots with staggered start offsets — 0ms, 180ms, 360ms
     val offsets = listOf(0, 180, 360).map { delay ->
         infiniteTransition.animateFloat(
             initialValue = 0f,
@@ -438,28 +458,30 @@ private fun KiraTypingIndicator() {
                 .border(1.dp, Teal700.copy(alpha = 0.15f), RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 4.dp, bottomEnd = 18.dp))
                 .padding(horizontal = 18.dp, vertical = 14.dp)
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
                 offsets.forEach { offsetY ->
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .graphicsLayer { translationY = offsetY }
-                            .clip(CircleShape)
-                            .background(Teal700.copy(alpha = 0.7f))
-                    )
+                    Box(modifier = Modifier.size(7.dp).graphicsLayer { translationY = offsetY }.clip(CircleShape).background(Teal700.copy(alpha = 0.7f)))
                 }
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Quick Suggestions Card
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**
+ * Quick suggestion prompts shown after the mood check-in when the conversation
+ * is still at the greeting stage (only one message sent).
+ *
+ * Displays four tappable suggestion rows, each with a vertical teal accent strip
+ * on the left edge. Tapping a suggestion sends it as a user message via
+ * [onSuggestionClick], which also dismisses this card since `messages.size`
+ * will no longer be 1 after the message is sent.
+ *
+ * A "Or type your own question below ↓" hint is shown beneath the suggestions
+ * to make the input bar discoverable for first-time users.
+ *
+ * @param onSuggestionClick Callback invoked with the full question string when
+ *                          a suggestion row is tapped
+ */
 @Composable
 private fun KiraQuickSuggestionsCard(onSuggestionClick: (String) -> Unit) {
     val suggestions = listOf(
@@ -469,18 +491,8 @@ private fun KiraQuickSuggestionsCard(onSuggestionClick: (String) -> Unit) {
         "Help me save money"
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 46.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            "Quick questions — tap to get started:",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold
-        )
+    Column(modifier = Modifier.fillMaxWidth().padding(start = 46.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Quick questions — tap to get started:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(2.dp))
 
         suggestions.forEach { question ->
@@ -494,46 +506,35 @@ private fun KiraQuickSuggestionsCard(onSuggestionClick: (String) -> Unit) {
                     .padding(0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Teal left accent strip
+                // 4dp teal accent strip on the left edge of each suggestion row
                 Box(
                     modifier = Modifier
                         .width(4.dp)
                         .height(52.dp)
-                        .background(
-                            Brush.verticalGradient(listOf(Teal700.copy(alpha = 0.6f), Teal700.copy(alpha = 0.3f))),
-                            RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp)
-                        )
+                        .background(Brush.verticalGradient(listOf(Teal700.copy(alpha = 0.6f), Teal700.copy(alpha = 0.3f))), RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp))
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        question,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f)
-                    )
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(question, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 }
             }
         }
 
         Spacer(Modifier.height(2.dp))
-        Text(
-            "Or type your own question below ↓",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-        )
+        Text("Or type your own question below ↓", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Reusable KIRA "K" avatar square */
+/**
+ * Reusable KIRA "K" avatar used throughout the KIRA chat screen.
+ *
+ * A rounded square [Box] with the [kiraGradient] background and a white "K"
+ * letter centred inside. The corner radius and font size both scale proportionally
+ * with [size] so the avatar looks correct at any size it's used at — currently
+ * 32dp for in-chat avatars and 52dp for the header avatar.
+ *
+ * @param size The width and height of the avatar in dp. Corner radius is calculated
+ *             as 28% of [size] and font size as 46% of [size].
+ */
 @Composable
 private fun KiraAvatar(size: Int) {
     Box(
@@ -543,16 +544,23 @@ private fun KiraAvatar(size: Int) {
             .background(Brush.linearGradient(kiraGradient)),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            "K",
-            fontSize = (size * 0.46f).sp,
-            fontWeight = FontWeight.Black,
-            color = Color.White
-        )
+        Text("K", fontSize = (size * 0.46f).sp, fontWeight = FontWeight.Black, color = Color.White)
     }
 }
 
-/** KIRA message bubble surface — white card with subtle teal left border */
+/**
+ * Reusable KIRA message bubble surface with a teal left accent bar.
+ *
+ * The bubble uses a flat top-left corner (4dp) and rounded corners elsewhere
+ * (18dp) to create the visual appearance of a speech tail pointing toward the
+ * [KiraAvatar] on the left. A 3dp vertical teal gradient bar runs along the
+ * left inner edge to reinforce the KIRA brand colour in every message.
+ *
+ * The [content] lambda is rendered inside a padded [Box] to the right of the
+ * accent bar, allowing any composable to be placed inside the bubble.
+ *
+ * @param content The composable content to render inside the bubble
+ */
 @Composable
 private fun KiraBubbleBox(content: @Composable () -> Unit) {
     Row(
@@ -560,21 +568,10 @@ private fun KiraBubbleBox(content: @Composable () -> Unit) {
             .widthIn(max = 270.dp)
             .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
             .background(MaterialTheme.colorScheme.surface)
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 18.dp)
-            )
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 18.dp))
     ) {
-        // Teal left accent bar
-        Box(
-            modifier = Modifier
-                .width(3.dp)
-                .fillMaxHeight()
-                .background(Brush.verticalGradient(listOf(Teal700.copy(alpha = 0.7f), Teal700.copy(alpha = 0.2f))))
-        )
-        Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            content()
-        }
+        // Teal left accent bar — fades from 70% to 20% opacity top to bottom
+        Box(modifier = Modifier.width(3.dp).fillMaxHeight().background(Brush.verticalGradient(listOf(Teal700.copy(alpha = 0.7f), Teal700.copy(alpha = 0.2f)))))
+        Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) { content() }
     }
 }

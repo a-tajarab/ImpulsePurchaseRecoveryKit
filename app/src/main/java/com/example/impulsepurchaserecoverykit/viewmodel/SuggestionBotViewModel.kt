@@ -12,20 +12,62 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+/**
+ * Data model representing a single message within the conversational coaching thread.
+ *
+ * @property role Specifies the sender identity type (e.g., "user", "assistant").
+ * @property content The textual message payload or query string body.
+ * @property isLoading Indicates whether this specific message block is currently processing an operational pipeline update.
+ */
 data class ChatMessage(
     val role: String,
     val content: String,
     val isLoading: Boolean = false
 )
 
+/**
+ * ViewModel responsible for orchestrating the interactive conversational spending coach interface (KIRA).
+ *
+ * Collects local transactional statistics from the [ReceiptRepository] and uses the [AnthropicApiClient]
+ * to generate personalized, behavioral-financial feedback streams for the user.
+ *
+ * @property application The application context used to initialise database infrastructure dependencies.
+ */
 class SuggestionBotViewModel(application: Application) : AndroidViewModel(application) {
 
+    /**
+     * Direct interface managing data operations and calculation queries against stored receipts.
+     */
     private val repository = ReceiptRepository(AppDatabase.getDatabase(application))
+
+    /**
+     * Internal backing state containing the sequential list of past chat messages.
+     */
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+
+    /**
+     * Read-only stream exposing the active message history array stack to Jetpack Compose UI listeners.
+     */
     val messages: StateFlow<List<ChatMessage>> = _messages
+
+    /**
+     * Internal backing state tracking active generative remote network requests.
+     */
     private val _isLoading = MutableStateFlow(false)
+
+    /**
+     * Observable stream signaling whether the network pipeline is actively awaiting a remote AI token package response.
+     */
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    /**
+     * Internal backing state catching transient network or operational system errors.
+     */
     private val _error = MutableStateFlow<String?>(null)
+
+    /**
+     * Observable stream detailing localized connection errors or API timeout warnings to display in the UI.
+     */
     val error: StateFlow<String?> = _error
 
     init {
@@ -63,6 +105,12 @@ class SuggestionBotViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * Appends user queries asynchronously to the chat flow logs, and dispatches the conversation
+     * matrix sequence tracking history to the Anthropic remote pipeline service.
+     *
+     * @param userInput Raw, unformatted text characters input provided directly by the user interface.
+     */
     fun sendMessage(userInput: String) {
         if (userInput.isBlank()) return
         val updatedMessages = _messages.value + ChatMessage(role = "user", content = userInput)
@@ -94,6 +142,12 @@ class SuggestionBotViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * Generates a dynamic identity configuration instruction prompt injected with live metrics calculations
+     * such as tracking patterns, regret points aggregates, and store visits.
+     *
+     * @return Fully contextualized instruction string structured for the Anthropic Claude API platform.
+     */
     private suspend fun buildSystemPrompt(): String {
         val receipts = repository.getAllReceipts().first()
         val totalSpend = receipts.sumOf { it.totalAmount ?: 0.0 }
@@ -180,13 +234,13 @@ class SuggestionBotViewModel(application: Application) : AndroidViewModel(applic
         
         THE USER'S REAL DATA (use this to personalise every response)
         --------------------------------------------------------------
-        - Total receipts logged: $receiptCount
-        - Total spend logged: £${String.format("%.2f", totalSpend)}
-        - Average regret score: ${avgRegret?.let { String.format("%.1f", it) } ?: "not rated yet"} / 10
-        - High regret purchases (scored 8+): $highRegretCount
-        - Most visited stores: $topStore
-        - Spending trend: $spendTrend
-        ${if (recentHighRegret.isNotEmpty()) "- Recent high-regret purchases: $recentHighRegret" else "- No high-regret purchases yet"}
+        - Total receipts logged: ${'$'}receiptCount
+        - Total spend logged: £${'$'}{String.format("%.2f", totalSpend)}
+        - Average regret score: ${'$'}{avgRegret?.let { String.format("%.1f", it) } ?: "not rated yet"} / 10
+        - High regret purchases (scored 8+): ${'$'}highRegretCount
+        - Most visited stores: ${'$'}topStore
+        - Spending trend: ${'$'}spendTrend
+        ${'$'}{if (recentHighRegret.isNotEmpty()) "- Recent high-regret purchases: $recentHighRegret" else "- No high-regret purchases yet"}
         
         CONVERSATION STARTER EXAMPLES (for inspiration, not to copy)
         -------------------------------------------------------------
@@ -200,7 +254,9 @@ class SuggestionBotViewModel(application: Application) : AndroidViewModel(applic
         Validate the feeling, identify the pattern from their data, give ONE concrete strategy, ask what triggers it.
         """.trimIndent()
     }
-
+    /**
+     * Clears the current user interface network connection or process failure state.
+     */
     fun clearError() {
         _error.value = null
     }
