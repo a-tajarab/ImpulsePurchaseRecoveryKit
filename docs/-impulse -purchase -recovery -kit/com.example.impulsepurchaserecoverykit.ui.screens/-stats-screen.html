@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html class="no-js">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8">
+    <title>StatsScreen</title>
+    <link href="../../images/logo-icon.svg" rel="icon" type="image/svg">
+    <script>var pathToRoot = "../../";</script>
+    <script>document.documentElement.classList.replace("no-js","js");</script>
+    <script>const storage = localStorage.getItem("dokka-dark-mode")
+    if (storage == null) {
+        const osDarkSchemePreferred = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (osDarkSchemePreferred === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    } else {
+        const savedDarkMode = JSON.parse(storage)
+        if(savedDarkMode === true) {
+            document.getElementsByTagName("html")[0].classList.add("theme-dark")
+        }
+    }
+    </script>
+<script type="text/javascript" src="https://unpkg.com/kotlin-playground@1/dist/playground.min.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/sourceset_dependencies.js" async="async"></script>
+<link href="../../styles/style.css" rel="Stylesheet">
+<link href="../../styles/main.css" rel="Stylesheet">
+<link href="../../styles/prism.css" rel="Stylesheet">
+<link href="../../styles/logo-styles.css" rel="Stylesheet">
+<link href="../../styles/font-jb-sans-auto.css" rel="Stylesheet">
+<script type="text/javascript" src="../../scripts/clipboard.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/navigation-loader.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/platform-content-handler.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/main.js" defer="defer"></script>
+<script type="text/javascript" src="../../scripts/prism.js" async="async"></script>
+<script type="text/javascript" src="../../scripts/symbol-parameters-wrapper_deferred.js" defer="defer"></script>
+</head>
+<body>
+    <div class="root">
+<nav class="navigation" id="navigation-wrapper">
+    <div class="navigation--inner">
+        <div class="navigation-title">
+            <button class="menu-toggle" id="menu-toggle" type="button">toggle menu</button>
+            <div class="library-name">
+                    <a class="library-name--link" href="../../index.html">
+                            Impulse Purchase Recovery Kit
+                    </a>
+            </div>
+            <div class="library-version">
+            </div>
+        </div>
+        <div class="filter-section" id="filter-section">
+                <button class="platform-tag platform-selector jvm-like" data-active="" data-filter=":app:dokkaHtml/release">androidJvm</button>
+        </div>
+    </div>
+    <div class="navigation-controls">
+        <button class="navigation-controls--btn navigation-controls--theme" id="theme-toggle-button" type="button">switch theme</button>
+        <div class="navigation-controls--btn navigation-controls--search" id="searchBar" role="button">search in API</div>
+    </div>
+</nav>
+        <div id="container">
+            <div class="sidebar" id="leftColumn">
+                <div class="sidebar--inner" id="sideMenu"></div>
+            </div>
+            <div id="main">
+<div class="main-content" data-page-type="member" id="content" pageIds="Impulse Purchase Recovery Kit::com.example.impulsepurchaserecoverykit.ui.screens//StatsScreen/#androidx.compose.foundation.layout.PaddingValues#com.example.impulsepurchaserecoverykit.viewmodel.ReceiptViewModel/PointingToDeclaration//492899073">
+  <div class="breadcrumbs"><a href="../../index.html">Impulse Purchase Recovery Kit</a><span class="delimiter">/</span><a href="index.html">com.example.impulsepurchaserecoverykit.ui.screens</a><span class="delimiter">/</span><span class="current">StatsScreen</span></div>
+  <div class="cover ">
+    <h1 class="cover"><span>Stats</span><wbr></wbr><span><span>Screen</span></span></h1>
+  </div>
+  <div class="platform-hinted " data-platform-hinted="data-platform-hinted"><div class="content sourceset-dependent-content" data-active="" data-togglable=":app:dokkaHtml/release"><div class="symbol monospace"><div class="block"><div class="block"><span class="token annotation builtin">@</span><a href="https://developer.android.com/reference/kotlin/androidx/compose/runtime/Composable.html"><span class="token annotation builtin">Composable</span></a></div></div><span class="token keyword">fun </span><a href="-stats-screen.html"><span class="token function">StatsScreen</span></a><span class="token punctuation">(</span><span class="parameters "><span class="parameter ">paddingValues<span class="token operator">: </span><a href="https://developer.android.com/reference/kotlin/androidx/compose/foundation/layout/PaddingValues.html">PaddingValues</a><span class="token punctuation">, </span></span><span class="parameter ">viewModel<span class="token operator">: </span><a href="../com.example.impulsepurchaserecoverykit.viewmodel/-receipt-view-model/index.html">ReceiptViewModel</a></span></span><span class="token punctuation">)</span></div><p class="paragraph">Analytics dashboard screen showing spending, regret, and category statistics.</p><p class="paragraph">The screen opens with a 1-in-5 chance of showing a &quot;Did you know?&quot; fact from <a href="../com.example.impulsepurchaserecoverykit.ui/-facts/list.html">Facts.list</a> as an <a href="https://developer.android.com/reference/kotlin/androidx/compose/material3/package-summary.html">AlertDialog</a> — a light-touch educational feature that surfaces spending psychology insights without being intrusive.</p><p class="paragraph">The main content is a <a href="https://developer.android.com/reference/kotlin/androidx/compose/foundation/lazy/package-summary.html">LazyColumn</a> with three sections:</p><p class="paragraph"><strong>Header</strong> — midnight navy bar with &quot;Your Stats&quot; title and tagline.</p><p class="paragraph"><strong>Summary cards</strong> — three <span data-unresolved-link="com.example.impulsepurchaserecoverykit.ui.screens//StatsCard/#androidx.compose.ui.Modifier#kotlin.String#kotlin.String#androidx.compose.ui.graphics.Color/PointingToDeclaration/">StatsCard</span> composables showing total receipts, total spend, and average regret score. Regret score is colour-coded green, amber, or red based on its value.</p><p class="paragraph"><strong>Tabbed content</strong> — a <a href="https://developer.android.com/reference/kotlin/androidx/compose/material3/package-summary.html">TabRow</a> with three tabs:</p><ol><li><p class="paragraph"><strong>Spending</strong> — toggleable between Monthly and Weekly view via <a href="https://developer.android.com/reference/kotlin/androidx/compose/material3/package-summary.html">FilterChip</a>:</p></li><ul><li><p class="paragraph">Monthly: a <span data-unresolved-link="com.example.impulsepurchaserecoverykit.ui.screens//SpendPeriodChart/#kotlin.collections.List[kotlin.Pair[kotlin.String,kotlin.Double]]#androidx.compose.ui.Modifier/PointingToDeclaration/">SpendPeriodChart</span> bar chart with daily breakdown and       ‹ / › month navigation buttons</p></li><li><p class="paragraph">Weekly: a 7-bar Mon–Sun chart with week navigation. The forward       button is disabled when <code class="lang-kotlin">weekOffset == 0</code> (current week)</p></li></ul><li><p class="paragraph"><strong>Regret</strong> — month-filtered receipt regret bars (one per rated receipt),     plus an all-time top regret list (<span data-unresolved-link="com.example.impulsepurchaserecoverykit.ui.screens//TopRegretCard/#com.example.impulsepurchaserecoverykit.database.entities.ReceiptEntity#androidx.compose.ui.Modifier/PointingToDeclaration/">TopRegretCard</span>) and a weekly regret     trend line chart (<a href="../com.example.impulsepurchaserecoverykit.ui.charts/-weekly-regret-line-chart.html">WeeklyRegretLineChart</a>) with trend direction indicator</p></li><li><p class="paragraph"><strong>Categories</strong> — month-filtered <a href="../com.example.impulsepurchaserecoverykit.ui.charts/-category-spend-bar-chart.html">CategorySpendBarChart</a> showing the top 6     spending categories by item total for the selected month</p></li></ol><p class="paragraph">The selected month and year are shared state across all three tabs so navigating to a different month on the Regret tab also affects the Categories tab.</p><h4 class="">Parameters</h4><div class="table"><div class="table-row" data-filterable-current=":app:dokkaHtml/release" data-filterable-set=":app:dokkaHtml/release"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><u><span>padding</span><wbr></wbr><span><span>Values</span></span></u></div></span></div><div><div class="title"><p class="paragraph">Padding applied by the parent <a href="https://developer.android.com/reference/kotlin/androidx/compose/material3/package-summary.html">Scaffold</a></p></div></div></div></div><div class="table-row" data-filterable-current=":app:dokkaHtml/release" data-filterable-set=":app:dokkaHtml/release"><div class="main-subrow keyValue "><div class=""><span class="inline-flex"><div><u><span>view</span><wbr></wbr><span><span>Model</span></span></u></div></span></div><div><div class="title"><p class="paragraph">The shared <a href="../com.example.impulsepurchaserecoverykit.viewmodel/-receipt-view-model/index.html">ReceiptViewModel</a> providing all spending and regret data</p></div></div></div></div></div></div></div>
+</div>
+      <div class="footer">
+        <span class="go-to-top-icon"><a href="#content" id="go-to-top-link"></a></span><span>© 2026 Copyright</span><span
+                class="pull-right"><span>Generated by </span><a
+                href="https://github.com/Kotlin/dokka"><span>dokka</span><span class="padded-icon"></span></a></span>
+      </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

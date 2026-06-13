@@ -110,3 +110,11 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }
+tasks.dokkaHtml {
+    moduleName.set("Impulse Purchase Recovery Kit")
+    dokkaSourceSets {
+        named("main") {
+            includes.from("Module.md")
+        }
+    }
+}
